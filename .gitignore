@@ -1,0 +1,24 @@
+# dependencies
+node_modules/
+
+# WXT build output
+.output/
+.wxt/
+
+# packaged extension
+*.zip
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# test / coverage
+coverage/
