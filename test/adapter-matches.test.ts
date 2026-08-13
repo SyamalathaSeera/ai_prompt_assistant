@@ -33,16 +33,13 @@ describe('content script / adapter match patterns', () => {
   });
 });
 
-describe('adapter registry', () => {
-  it('resolves supported ChatGPT hostnames', () => {
-    expect(resolveAdapter('chatgpt.com')?.id).toBe('chatgpt');
-    expect(resolveAdapter('chat.openai.com')?.id).toBe('chatgpt');
-    expect(resolveAdapter('www.chatgpt.com')?.id).toBe('chatgpt');
-  });
-
-  it('returns null for unsupported hosts rather than throwing', () => {
-    expect(resolveAdapter('example.com')).toBeNull();
-    expect(resolveAdapter('claude.ai')).toBeNull();
-    expect(resolveAdapter('notchatgpt.com')).toBeNull();
+describe('manifest / registry agreement', () => {
+  it('claims a hostname for every host pattern in the manifest', () => {
+    // A pattern the manifest injects on but the registry does not claim would
+    // mean the content script loads and then quietly does nothing.
+    for (const pattern of CHATGPT_MATCHES) {
+      const hostname = new URL(pattern.replace('/*', '/')).hostname;
+      expect(resolveAdapter(hostname)?.id).toBe('chatgpt');
+    }
   });
 });

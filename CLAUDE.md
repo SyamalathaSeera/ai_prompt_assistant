@@ -26,9 +26,9 @@ No backend, no server, no telemetry.
 
 ## Current Status
 
-**Phase**: Milestone 0.0.3.0, Site Adapter + Interception
-**Last Updated**: 2026-08-12
-**Version**: 0.0.2.6
+**Phase**: Milestone 0.0.4.0, Approval Modal + Risk Badge
+**Last Updated**: 2026-08-13
+**Version**: 0.0.3.5
 
 ### Completed Milestones
 - **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind
@@ -42,8 +42,14 @@ No backend, no server, no telemetry.
   Treat 100% as provisional — the corpus is self-authored, and the number that matters
   comes from beta.
 
+- **0.0.3.0** (2026-08-13): Site adapter + interception. 327 tests. ChatGPT selectors
+  verified against the live DOM — which caught a 0×0 decoy textarea, a double-fire on
+  send, and a self-interception loop that no jsdom test would have found. Submit holds,
+  paste warns without blocking, live scan drives the risk level. Fail-open proven by
+  fault injection at every stage.
+
 ### Active Milestone
-- **Milestone 0.0.3.0**: Site adapter layer + submit/paste interception
+- **Milestone 0.0.4.0**: Approval modal + risk badge (Shadow DOM UI)
 
 ### Planned Next
 - **0.0.2.0**: Detector engine + labeled test corpus

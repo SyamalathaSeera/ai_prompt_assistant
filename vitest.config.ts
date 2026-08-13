@@ -9,7 +9,10 @@ import { defineConfig } from 'vitest/config';
  * `chrome`, its tests fail immediately rather than passing quietly and
  * rotting the boundary.
  *
- * The `ui` project gets jsdom, and is scoped to component tests only.
+ * The `ui` project gets jsdom. Adapters live here because their entire job is
+ * knowing what a host page's DOM looks like — and keeping them OUT of the node
+ * project is what stops the detector's purity guarantee from being quietly
+ * diluted to "most of lib/ is pure".
  */
 export default defineConfig({
   test: {
@@ -18,14 +21,23 @@ export default defineConfig({
         test: {
           name: 'lib',
           environment: 'node',
-          include: ['lib/**/*.test.ts', 'test/**/*.test.ts'],
+          include: [
+            'lib/detector/**/*.test.ts',
+            'lib/policy/**/*.test.ts',
+            'test/**/*.test.ts',
+          ],
         },
       },
       {
         test: {
           name: 'ui',
           environment: 'jsdom',
-          include: ['components/**/*.test.tsx', 'entrypoints/**/*.test.tsx'],
+          include: [
+            'lib/adapters/**/*.test.ts',
+            'lib/interception/**/*.test.ts',
+            'components/**/*.test.tsx',
+            'entrypoints/**/*.test.tsx',
+          ],
         },
       },
     ],
