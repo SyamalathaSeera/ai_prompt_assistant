@@ -26,9 +26,9 @@ No backend, no server, no telemetry.
 
 ## Current Status
 
-**Phase**: Milestone 0.1.0.0, Multi-Platform Adapters
+**Phase**: Milestone 0.2.0.0, On-Device Model Foundation
 **Last Updated**: 2026-08-13
-**Version**: 0.0.6.4
+**Version**: 0.1.0.4
 
 ### Completed Milestones
 - **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind
@@ -65,8 +65,14 @@ No backend, no server, no telemetry.
   Schema now at v2 — the allowlist gained labels and dates, exercising the migration
   machinery for real.
 
+- **0.1.0.0** (2026-08-13): Claude and Gemini adapters. 732 tests. All three platforms
+  pass one shared conformance suite. Bug_0001 was found reproducible on **all three**,
+  across two editor libraries, so the fix was hoisted into `block-editor.ts`. Gemini
+  declines message reading rather than guessing at unverified DOM. The install-time
+  permission ask is now asserted in CI against the built manifest.
+
 ### Active Milestone
-- **Milestone 0.1.0.0**: Multi-platform adapters (Claude, Gemini)
+- **Milestone 0.2.0.0**: On-device model foundation (Chrome Prompt API)
 
 ### Planned Next
 - **0.1.0.0**: Claude + Gemini adapters

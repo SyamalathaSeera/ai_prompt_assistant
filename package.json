@@ -2,7 +2,7 @@
   "name": "ai-prompt-assistant",
   "description": "Detects and redacts secrets and sensitive data in AI chat prompts before they are sent. Runs entirely on-device.",
   "private": true,
-  "version": "0.0.6.4",
+  "version": "0.1.0.4",
   "type": "module",
   "scripts": {
     "dev": "wxt",

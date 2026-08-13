@@ -1,4 +1,5 @@
-import { byLargest, bySelector, byVisibleSelector, resolveWithFallback } from './resolve';
+﻿import { byLargest, bySelector, byVisibleSelector, resolveWithFallback } from './resolve';
+import { readBlockEditorText, writeBlockEditorText } from './block-editor';
 import type {
   AdapterHealth,
   ChatMessage,
@@ -66,14 +67,6 @@ const SEND_BUTTON_STRATEGIES = [
  */
 const TURN_SELECTOR = '[data-testid^="conversation-turn-"]';
 
-/**
- * Elements that represent a line of their own in the composer.
- *
- * ProseMirror uses `<p>` for ordinary lines; the rest cover code blocks,
- * quotes, and list items, which a pasted config or snippet can produce.
- */
-const BLOCK_TAGS = new Set(['p', 'div', 'pre', 'blockquote', 'li', 'h1', 'h2', 'h3']);
-
 /** Who produced a turn, with a fallback for when the outer attribute changes. */
 function roleOf(turn: HTMLElement): 'user' | 'assistant' {
   const outer = turn.getAttribute('data-turn');
@@ -113,79 +106,14 @@ export const chatgptAdapter: SiteAdapter = {
     return findComposer().element;
   },
 
-  /**
-   * Reads the composer's text, preserving line breaks.
-   *
-   * ProseMirror renders each line as its own block element, and `textContent`
-   * concatenates block elements with NO separator — so a pasted `.env` file
-   * comes back as `...EXAMPLEDATABASE_URL=...`, with every line boundary
-   * erased.
-   *
-   * That is not cosmetic. Most rules are anchored with `\b`, so a secret at
-   * the end of a line gets glued to the start of the next one and stops
-   * matching. Pasting a multi-line config is the single most common way this
-   * product is used, and reading it with textContent silently misses the
-   * secrets in it. Found by driving the real page on 2026-08-13; every test
-   * passed because the jsdom fixture used flat text rather than ProseMirror's
-   * block structure.
-   */
+  /** See `readBlockEditorText` — shared with Claude, which has the same quirk. */
   getText(el: HTMLElement): string {
-    if (el instanceof HTMLTextAreaElement) return el.value;
-
-    const blocks = [...el.children].filter((child) =>
-      BLOCK_TAGS.has(child.tagName.toLowerCase()),
-    );
-
-    // No block children: a plain contenteditable, where textContent is right.
-    if (blocks.length === 0) return el.textContent ?? '';
-
-    return blocks.map((block) => block.textContent ?? '').join('\n');
+    return readBlockEditorText(el);
   },
 
-  /**
-   * Replaces the composer's content.
-   *
-   * Goes through `execCommand('insertText')` rather than assigning
-   * `textContent`. execCommand routes through the browser's native editing
-   * pipeline, which ProseMirror handles exactly as it handles a real user
-   * edit, so its internal document state cannot drift from the DOM.
-   *
-   * That distinction is the difference between a redaction that works and one
-   * that appears to work: if ProseMirror's document were stale at submit time,
-   * ChatGPT would send the ORIGINAL text while the user believed it had been
-   * redacted. Direct assignment was observed to stay in sync on 2026-08-12,
-   * but that relies on ProseMirror's mutation observer — undocumented
-   * behaviour to bet a security guarantee on. The assignment path is kept only
-   * as a fallback for when execCommand is unavailable.
-   */
+  /** See `writeBlockEditorText`. Verified against the live page 2026-08-13. */
   setText(el: HTMLElement, text: string): void {
-    if (el instanceof HTMLTextAreaElement) {
-      el.value = text;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      return;
-    }
-
-    el.focus();
-
-    let inserted = false;
-    try {
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-
-      inserted = document.execCommand('insertText', false, text);
-    } catch {
-      inserted = false;
-    }
-
-    if (inserted) return;
-
-    el.textContent = text;
-    el.dispatchEvent(
-      new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }),
-    );
+    writeBlockEditorText(el, text);
   },
 
   /**
@@ -453,3 +381,4 @@ function submitProgrammatically(): void {
     }, 0);
   }
 }
+

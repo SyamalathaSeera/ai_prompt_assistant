@@ -41,7 +41,12 @@ export default defineConfig({
     // Install-time permissions are deliberately minimal. Every host on the
     // install warning screen costs conversion, and the product's pitch is that
     // nothing leaves the machine — so we ask for one site and no more.
-    permissions: ['storage'],
+    // `scripting` is needed to register content scripts for platforms the user
+    // enables after install. It grants no host access on its own — injection
+    // still requires the host permission the user has just approved — and
+    // Chrome does not surface it as a warning on the install screen, so the
+    // install ask remains ChatGPT only. Asserted in the manifest test.
+    permissions: ['storage', 'scripting'],
     host_permissions: ['https://chatgpt.com/*', 'https://chat.openai.com/*'],
 
     // Additional platforms are requested at the moment the user enables them

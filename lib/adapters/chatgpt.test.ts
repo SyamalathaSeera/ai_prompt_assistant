@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { chatgptAdapter } from './chatgpt';
+import { runAdapterConformance } from './conformance';
 import type { SubmitIntent } from './types';
 
 /**
@@ -44,6 +45,33 @@ function mountChatGpt(): { composer: HTMLElement; form: HTMLFormElement } {
 
 beforeEach(() => {
   document.body.innerHTML = '';
+});
+
+/**
+ * The shared contract, run against ChatGPT's fixture.
+ *
+ * Running this before the Claude adapter exists is deliberate: it proves the
+ * contract describes something real rather than being retrofitted to whatever
+ * two implementations happen to have in common.
+ */
+describe('adapter conformance', () => {
+  runAdapterConformance(chatgptAdapter, {
+    mount: () => mountChatGpt().composer,
+    fillLines: (composer, lines) => {
+      composer.innerHTML = '';
+      for (const line of lines) {
+        const p = document.createElement('p');
+        p.textContent = line;
+        composer.appendChild(p);
+      }
+    },
+    clickSend: () => {
+      document
+        .querySelector<HTMLElement>('[data-testid="send-button"]')!
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    },
+    hasForm: true,
+  });
 });
 
 describe('getComposer', () => {

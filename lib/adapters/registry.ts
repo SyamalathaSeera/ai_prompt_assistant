@@ -1,4 +1,6 @@
 import { chatgptAdapter } from './chatgpt';
+import { claudeAdapter } from './claude';
+import { geminiAdapter } from './gemini';
 import type { SiteAdapter } from './types';
 
 /**
@@ -7,7 +9,7 @@ import type { SiteAdapter } from './types';
  * Milestone 0.1.0.0 registers the Claude and Gemini adapters here. Adding a
  * platform should mean adding one entry plus one adapter file.
  */
-const ADAPTERS: readonly SiteAdapter[] = [chatgptAdapter];
+const ADAPTERS: readonly SiteAdapter[] = [chatgptAdapter, claudeAdapter, geminiAdapter];
 
 /**
  * Hostnames each adapter claims.
@@ -17,6 +19,8 @@ const ADAPTERS: readonly SiteAdapter[] = [chatgptAdapter];
  */
 const HOSTNAMES: Readonly<Record<string, readonly string[]>> = {
   chatgpt: ['chatgpt.com', 'chat.openai.com'],
+  claude: ['claude.ai'],
+  gemini: ['gemini.google.com'],
 };
 
 /**

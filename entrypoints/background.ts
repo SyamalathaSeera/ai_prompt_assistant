@@ -1,3 +1,5 @@
+import { syncRegistrations } from '@/lib/adapters/platforms';
+
 export default defineBackground(() => {
   /**
    * Let the content script read and write `storage.session`.
@@ -22,4 +24,26 @@ export default defineBackground(() => {
       // Older browsers lack setAccessLevel. Re-hydration degrades to showing
       // placeholders unchanged, which is exactly what was sent — never an error.
     });
+
+  /**
+   * Keep content script registrations in step with granted permissions.
+   *
+   * Dynamic registrations survive a browser restart, but not every path — an
+   * extension update can clear them while the host permission remains. A user
+   * who enabled Claude months ago would then quietly stop being protected on
+   * it, with the options page still showing the toggle on.
+   *
+   * Running this on both startup and install makes the two states agree again.
+   */
+  void syncRegistrations();
+  browser.runtime.onStartup.addListener(() => void syncRegistrations());
+  browser.runtime.onInstalled.addListener(() => void syncRegistrations());
+
+  /**
+   * A permission revoked outside our options page — from Chrome's own
+   * extension settings — must also drop the registration, or the script would
+   * keep trying to inject somewhere it no longer has access.
+   */
+  browser.permissions.onRemoved?.addListener(() => void syncRegistrations());
+  browser.permissions.onAdded?.addListener(() => void syncRegistrations());
 });
