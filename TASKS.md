@@ -1,7 +1,7 @@
 # TASKS.md: AI Prompt Assistant Milestone Tracker
 
 **Last Updated**: 2026-08-12
-**Current Version**: 0.0.0.0
+**Current Version**: 0.0.2.6
 
 ---
 
@@ -9,7 +9,8 @@
 
 | Milestone | Status | Date Completed | Tasks | Description |
 |---|---|---|---|---|
-| _(none yet)_ | | | | |
+| [0.0.1.0](./tasks/Milestone0.0.1.0.md) | Complete | 2026-08-12 | 6/6 | Project setup and scaffolding |
+| [0.0.2.0](./tasks/Milestone0.0.2.0.md) | Complete | 2026-08-12 | 7/7 | Detector engine + labeled test corpus |
 
 ---
 
@@ -17,7 +18,7 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.0.1.0](./tasks/Milestone0.0.1.0.md) | In Progress | SETUP | Project setup and scaffolding |
+| [0.0.3.0](./tasks/Milestone0.0.3.0.md) | Ready | HIGH | Site adapter layer + submit/paste interception |
 
 ---
 
@@ -25,8 +26,6 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.0.2.0](./tasks/Milestone0.0.2.0.md) | Planning | HIGH | Detector engine + labeled test corpus |
-| [0.0.3.0](./tasks/Milestone0.0.3.0.md) | Planning | HIGH | Site adapter layer + submit/paste interception |
 | [0.0.4.0](./tasks/Milestone0.0.4.0.md) | Planning | HIGH | Approval modal + risk badge (Shadow DOM UI) |
 | [0.0.5.0](./tasks/Milestone0.0.5.0.md) | Planning | HIGH | Vault + response re-hydration |
 | [0.0.6.0](./tasks/Milestone0.0.6.0.md) | Planning | MEDIUM | Settings, allowlist, popup + options page |

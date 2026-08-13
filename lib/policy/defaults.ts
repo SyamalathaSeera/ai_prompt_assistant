@@ -1,3 +1,4 @@
+import { DEFAULT_DISABLED_RULE_IDS } from '../detector/rules';
 import type { Counters, Settings } from './schema';
 
 export const SCHEMA_VERSION = 1;
@@ -18,7 +19,9 @@ export const DEFAULT_SETTINGS: Settings = {
   placeholderStyle: 'bracketed',
   scanOnPaste: true,
   rehydrateResponses: true,
-  disabledRuleIds: [],
+  // Sourced from the rule definitions themselves so the default experience
+  // and the rules cannot drift apart.
+  disabledRuleIds: [...DEFAULT_DISABLED_RULE_IDS],
   allowlistHashes: [],
   pausedHosts: [],
 };
