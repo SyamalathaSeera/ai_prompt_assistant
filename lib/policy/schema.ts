@@ -6,7 +6,12 @@
  * Milestone 0.0.6.0 Task 1 adds the migration function.
  */
 
-export type PlaceholderStyle = 'bracketed' | 'dummy';
+// Defined in the detector, which owns placeholder shape. Re-exported here so
+// settings consumers have one import for the settings vocabulary.
+import type { PlaceholderStyle } from '../detector/types';
+
+export type { PlaceholderStyle };
+
 export type HighTierBehavior = 'block' | 'warn';
 
 export interface Settings {

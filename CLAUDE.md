@@ -26,15 +26,24 @@ No backend, no server, no telemetry.
 
 ## Current Status
 
-**Phase**: Milestone 0.0.1.0, Project Initialization
+**Phase**: Milestone 0.0.3.0, Site Adapter + Interception
 **Last Updated**: 2026-08-12
-**Version**: 0.0.0.0
+**Version**: 0.0.2.6
 
 ### Completed Milestones
-_(none yet)_
+- **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind
+  + Vitest + ESLint. Verified live on chatgpt.com: content script injects on the target
+  host only, and **zero of 386 network requests** originated from the extension — the
+  ADR-001 baseline.
+
+- **0.0.2.0** (2026-08-12): Detector engine + labeled corpus. 16 high-tier rules and 6
+  low-tier PII rules, 212 tests. Quality gate live in CI: **precision 100%, recall 100%**
+  against 10 positive and 24 negative documents, 0.4ms on 10KB against a 50ms budget.
+  Treat 100% as provisional — the corpus is self-authored, and the number that matters
+  comes from beta.
 
 ### Active Milestone
-- **Milestone 0.0.1.0**: Project setup and scaffolding
+- **Milestone 0.0.3.0**: Site adapter layer + submit/paste interception
 
 ### Planned Next
 - **0.0.2.0**: Detector engine + labeled test corpus

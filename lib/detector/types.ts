@@ -22,6 +22,18 @@
 export type Tier = 'high' | 'low';
 
 /**
+ * How placeholders are rendered.
+ *
+ * `bracketed` — `[REDACTED_AWS_ACCESS_KEY_ID_1]`. The default: unmistakably a
+ * substitution, so the model does not mistake it for a real value.
+ *
+ * `dummy` — `dummy_aws_access_key_id_1`. For the occasional case where a
+ * bracketed token confuses a model into commenting on the redaction instead of
+ * doing the task.
+ */
+export type PlaceholderStyle = 'bracketed' | 'dummy';
+
+/**
  * A single detected item.
  *
  * Deliberately does NOT carry the matched value. Callers slice it out of the
@@ -63,21 +75,64 @@ export interface Rule {
   /** Global regex. The engine handles lastIndex management. */
   pattern: RegExp;
   /**
+   * When set, only this capture group is treated as the secret; the rest of
+   * the match is context used to make the rule precise.
+   *
+   * This exists because the PRD requires redactions to preserve enough context
+   * for the model to still understand the task. `DB_PASSWORD=[REDACTED_1]`
+   * keeps the request intelligible; replacing the whole line with
+   * `[REDACTED_1]` does not. It also lets a generic-looking value (a bare
+   * 40-char base64 string) be matched precisely by anchoring on the keyword
+   * that precedes it.
+   */
+  captureGroup?: number;
+  /**
+   * Tie-breaker when two rules claim the same span. Higher wins; default 0.
+   *
+   * A vendor key inside a config assignment — `STRIPE_SECRET_KEY=sk_live_…` —
+   * is the common real-world case, and both the vendor rule and the generic
+   * keyword rule match it identically. Without this the tie falls to rule id,
+   * which is arbitrary, and the user gets told "Secret in Configuration" when
+   * the extension could have told them precisely which vendor key leaked.
+   *
+   * Convention: generic keyword-anchored fallbacks sit below 0, prefix-anchored
+   * vendor rules stay at the 0 default.
+   */
+  specificity?: number;
+  /**
    * Optional suppression pass. Return false to reject a regex match.
    * This is where Luhn checks, entropy gates, and documentation-placeholder
    * detection live — the layer that removes most false-positive risk.
    */
   validate?: (match: string, ctx: MatchContext) => boolean;
-  /** Builds the placeholder token. `index` is stable per distinct value. */
-  placeholder: (index: number) => string;
+  /**
+   * Type name used to build the placeholder, e.g. `AWS_ACCESS_KEY_ID`.
+   *
+   * The engine formats the final token from this plus the occurrence index and
+   * the configured style, rather than each rule building its own string. That
+   * keeps placeholder shape in exactly one place — which matters because
+   * `isLikelyPlaceholder` has to recognise every shape we emit, or redaction
+   * stops being idempotent.
+   */
+  token: string;
 }
 
 /** Options controlling a single detection pass. */
 export interface DetectOptions {
   /** Rule ids to skip entirely (from user settings). */
   disabledRuleIds?: readonly string[];
-  /** Hashed allowlist entries; matching values are suppressed. */
-  allowlistHashes?: readonly string[];
+  /**
+   * Suppresses values the user has permanently allowlisted.
+   *
+   * A predicate rather than a list of hashes, deliberately. Hashing is the
+   * caller's concern: `crypto.subtle` is async and unavailable in the pure
+   * node test environment, so pulling it in here would break ADR-004. The
+   * caller loads allowlist entries from storage (async, once) and supplies a
+   * synchronous predicate closed over them. Wired up in milestone 0.0.6.0.
+   */
+  isAllowlisted?: (value: string) => boolean;
+  /** Placeholder rendering. Defaults to `bracketed`. */
+  placeholderStyle?: PlaceholderStyle;
 }
 
 /** Result of applying redactions to a source text. */
