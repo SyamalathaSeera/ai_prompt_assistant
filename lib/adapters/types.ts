@@ -31,6 +31,8 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   element: HTMLElement;
+  /** Stable per-message identifier from the host page, when it exposes one. */
+  id: string | null;
 }
 
 /** Detaches a listener or observer. Every subscribe method returns one. */
@@ -91,6 +93,17 @@ export interface SiteAdapter {
 
   /** Prior conversation turns. Optional — not every platform can support it. */
   getMessages?(): ChatMessage[];
+
+  /**
+   * Identifies the current conversation.
+   *
+   * Used to scope vault entries: placeholders are numbered per prompt, so the
+   * same token means different things in different chats and resolving across
+   * them would show one conversation's secret inside another.
+   *
+   * Returns null before a conversation exists (a fresh, unsent chat).
+   */
+  getConversationId?(): string | null;
 
   /**
    * Observes assistant responses as they stream in. Used for re-hydration

@@ -10,10 +10,11 @@ import { WxtVitest } from 'wxt/testing/vitest-plugin';
  * `chrome`, its tests fail immediately rather than passing quietly and
  * rotting the boundary.
  *
- * The `ui` project gets jsdom. Adapters and components live here because their
- * job is knowing about the DOM — and keeping them OUT of the node project is
- * what stops the detector's purity guarantee from being quietly diluted to
- * "most of lib/ is pure".
+ * The `ui` project gets jsdom. Adapters, components, the vault, and
+ * re-hydration live here because their job involves the DOM or extension
+ * APIs — and keeping them OUT of the node project is what stops the
+ * detector's purity guarantee from being quietly diluted to "most of lib/ is
+ * pure".
  *
  * `WxtVitest` supplies WXT's path aliases (`@/*`) and auto-imports, so the
  * alias map has exactly one definition rather than a copy here that drifts.
@@ -46,6 +47,10 @@ export default defineConfig({
           include: [
             'lib/adapters/**/*.test.ts',
             'lib/interception/**/*.test.ts',
+            // The vault talks to chrome.storage, so it belongs with the
+            // browser-dependent code rather than the pure `lib` project.
+            'lib/vault/**/*.test.ts',
+            'lib/rehydrate/**/*.test.ts',
             'components/**/*.test.{ts,tsx}',
             'entrypoints/**/*.test.{ts,tsx}',
           ],
