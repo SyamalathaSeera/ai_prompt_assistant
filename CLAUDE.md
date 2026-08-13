@@ -82,24 +82,29 @@ what the product is.
 
 **Git Policy:**
 - Claude does NOT run `git add`, `git commit`, `git push`, or create PRs
-- Exception: creating feature branches only (`git checkout -b` + `git push -u origin`)
-- Developer handles all commits and merges via GitHub Desktop
+- Exception: creating feature branches **locally** (`git checkout -b`). Claude cannot
+  push them — see the credential note below
+- Developer handles all commits, pushes, and merges via GitHub Desktop
+- **Push cadence:** developer pushes at milestone boundaries, not per task. Work is
+  local-only until the milestone-end push
 
 **Git Identity:**
 - This is a **personal** project. Run `git personal` in the repo before the first
   commit to set `SyamalathaSeera / syamalathaseera@gmail.com`.
-- **Credential state (as of 2026-08-12):** the stored `git:https://github.com`
-  credential — which previously held the work account `sseera-pixel` — was deleted.
-  Git Credential Manager (`credential.helper = manager`, set at system level) will
-  prompt on the next push. Sign in as **SyamalathaSeera**.
-- **Use the username-in-remote form** so the personal and work credentials coexist
-  instead of overwriting each other:
+- **Credential state (as of 2026-08-12):** the stale legacy entry
+  `git:https://github.com` (work account `sseera-pixel`) was deleted. The live
+  credential is `GitHub - https://api.github.com/SyamalathaSeera`, created by GitHub
+  Desktop when this repo was first published. `credential.helper = manager` is set at
+  system level.
+- **The remote uses the username-in-URL form**, which tells GCM which account this repo
+  wants when work and personal accounts are both stored:
   ```
   https://SyamalathaSeera@github.com/SyamalathaSeera/ai_prompt_assistant.git
   ```
-  Without the username hint, GCM stores one credential for all of github.com, and the
-  next push from a work repo (`thesus-bt`, `nurses-station-dev`, `thesushealth-web`)
-  replaces it.
+- **Claude cannot push.** GCM requires an interactive sign-in window and tool-driven
+  commands run with prompts disabled, so any push Claude attempts fails with
+  `could not read Username`. All pushes are developer actions — consistent with the git
+  policy above.
 
 **Branch Naming:**
 - `syamalatha-MMDDYY-[VERSION]-ext`

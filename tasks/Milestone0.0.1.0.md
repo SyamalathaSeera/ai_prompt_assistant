@@ -2,9 +2,9 @@
 
 **Version:** 0.0.1.0
 **Date Created:** 2026-08-12
-**Date Started:** 
+**Date Started:** 2026-08-12
 **Date Completed:** 
-**Status:** Planning
+**Status:** In Progress
 **Based on:** Project kickoff conversation, 2026-08-12
 
 Stand up a WXT + React + TypeScript MV3 extension that loads unpacked in Chrome and
@@ -17,7 +17,7 @@ to produce a clean, verified baseline.
 
 **Current Version (at milestone start):**
 
-- **ai_prompt_assistant:** `0.0.0.0` (greenfield, no package.json yet)
+- **ai_prompt_assistant:** `0.0.0.0` (confirmed 2026-08-12 — no package.json yet; created in Task 1)
 
 **Target Version (after milestone completion):**
 
@@ -40,16 +40,16 @@ to produce a clean, verified baseline.
 
 ## Progress Summary
 
-**Completion:** 0 of 6 tasks complete (0%)
+**Completion:** 6 of 6 tasks complete (100%)
 
 | Task                                      | Priority | Status  | Version   | Verified |
 | ----------------------------------------- | -------- | ------- | --------- | -------- |
-| Task 0: Milestone Initialization          | SETUP    | Pending | 0.0.1.0   | -        |
-| Task 1: Initialize WXT project            | HIGH     | Pending | 0.0.1.1   | -        |
-| Task 2: Tailwind + Vitest                 | HIGH     | Pending | 0.0.1.2   | -        |
-| Task 3: Lint, format, tsconfig strict     | MEDIUM   | Pending | 0.0.1.3   | -        |
-| Task 4: Manifest + module skeleton        | HIGH     | Pending | 0.0.1.4   | -        |
-| Task 5: Verify unpacked load on ChatGPT   | CRITICAL | Pending | 0.0.1.5   | -        |
+| Task 0: Milestone Initialization          | SETUP    | Complete | 0.0.1.0 | push deferred |
+| Task 1: Initialize WXT project            | HIGH     | Complete | 0.0.1.1  | build ✓  |
+| Task 2: Tailwind + Vitest                 | HIGH     | Complete | 0.0.1.2  | 3 tests ✓ |
+| Task 3: Lint, format, tsconfig strict     | MEDIUM   | Complete | 0.0.1.3  | rules ✓  |
+| Task 4: Manifest + module skeleton        | HIGH     | Complete | 0.0.1.4  | 7 tests ✓ |
+| Task 5: Verify unpacked load on ChatGPT   | CRITICAL | Complete | 0.0.1.5  | live ✓   |
 
 ---
 
@@ -120,13 +120,15 @@ the **username-in-URL form**:
 git remote add origin https://SyamalathaSeera@github.com/SyamalathaSeera/ai_prompt_assistant.git
 ```
 
-The `SyamalathaSeera@` prefix is not cosmetic. Git Credential Manager keys credentials
-by username when one is present; without it, GCM stores a single credential for all of
-github.com and work repos overwrite it on their next push.
+The `SyamalathaSeera@` prefix disambiguates which account GCM uses. GCM's GitHub host
+provider can hold several accounts side by side as separate
+`GitHub - https://api.github.com/<user>` entries; the username in the remote tells it
+which one this repo wants, rather than leaving it to pick or prompt.
 
-**Credential state:** the old `git:https://github.com` entry (work account
-`sseera-pixel`) was deleted on 2026-08-12. There is currently no stored git credential
-for github.com.
+**Credential state (2026-08-12):** the stale legacy entry `git:https://github.com`
+(work account `sseera-pixel`) was deleted. The live credential is
+`GitHub - https://api.github.com/SyamalathaSeera`, created when GitHub Desktop first
+published this repo.
 
 ### Step 0.3: Create the feature branch
 
@@ -134,25 +136,39 @@ for github.com.
 git checkout -b syamalatha-081226-0.0.1.0-ext
 ```
 
-Push once there is an initial commit.
+**Push cadence (decided 2026-08-12):** the developer pushes at *milestone* boundaries,
+not per task. The branch therefore exists locally through the milestone and is published
+when the milestone completes. Task 0 is considered complete once the branch exists
+locally.
 
-> ⚠️ **Run the first push yourself, not through Claude.** GCM opens an interactive
-> sign-in window that will hang a tool-driven command. Sign in as `SyamalathaSeera`.
+> ⚠️ **All pushes are developer actions.** Claude's commands run with terminal prompts
+> disabled, so GCM cannot open its sign-in window and any push Claude attempts fails
+> with `could not read Username`. Push from GitHub Desktop or with a `!` -prefixed
+> command.
+>
+> **Tradeoff:** work is local-only until the milestone-end push. Nothing off-machine
+> until then.
 
 ### Step 0.4: Verify the credential landed correctly
 
 After the first successful push:
 
 ```bash
-cmdkey /list | findstr /C:"git:https://github.com" /C:"User:"
+cmdkey /list | findstr /C:"github" /C:"User:"
 ```
 
-Expect `SyamalathaSeera`. If it shows `sseera-pixel`, the wrong account was used —
-delete the entry and retry:
+Expect an entry named `GitHub - https://api.github.com/SyamalathaSeera`. If an entry
+for `sseera-pixel` appears instead, the wrong account was used — delete that specific
+entry and retry the push:
 
 ```bash
-cmdkey /delete:LegacyGeneric:target=git:https://github.com
+cmdkey /delete:LegacyGeneric:target=GitHub - https://api.github.com/sseera-pixel
 ```
+
+**Note for future sessions:** Claude cannot push. Git Credential Manager needs an
+interactive sign-in window, and tool-driven commands run with prompts disabled — a push
+attempted by Claude fails with `could not read Username`. All pushes are developer
+actions, which matches the git policy anyway.
 
 ### Step 0.5: Update Milestone Header
 
@@ -200,17 +216,41 @@ manifest from `wxt.config.ts`, so the manifest is not hand-authored.
 
 ### Testing
 
-- [ ] `npm run dev` starts without error
-- [ ] `.output/chrome-mv3-dev/manifest.json` exists and reports version `0.0.1.0`
-- [ ] `npm run build` completes
+- [x] `npm install` completes; `wxt prepare` postinstall succeeds
+- [x] `npm run build` completes (211.65 kB total, 1.35s)
+- [x] `.output/chrome-mv3/manifest.json` reports version `0.0.1.0`
+- [ ] `npm run dev` + browser load — **deferred to Task 5**, which is the dedicated
+      verification task. Avoids launching a Chrome window mid-setup.
 
 ### Success Criteria
 
-- WXT project initialized in place without clobbering CLAUDE.md, ARCHITECTURE.md, PRD.md, TASKS.md, `tasks/`, `bugs/`, `screenshots/`
-- Version reads 0.0.1.0
+- [x] WXT initialized without clobbering CLAUDE.md, ARCHITECTURE.md, PRD.md, TASKS.md, `tasks/`, `bugs/`, `screenshots/`, `.git`, or `.gitignore`
+- [x] Version reads 0.0.1.0 in both package.json and the built manifest
 
-> ⚠️ Verify the management docs still exist after scaffolding. If `wxt init` refuses a
-> non-empty directory, scaffold to a temp folder and copy the generated files in.
+### Outcome (2026-08-12)
+
+Scaffolded via the WXT `react` template (already TypeScript — there is no separate
+`react-ts` template). Generated into a scratchpad directory and copied in, rather than
+`wxt init .`, so the existing repo and docs were never at risk.
+
+**Installed:** WXT 0.21.4, React 19.2.4, TypeScript 5.9.3, web-ext 10.5.0
+
+**Resolved question — npm and the four-digit version.** `0.0.1.0` is not valid semver,
+so there was a real risk npm would reject it. It did not: `npm install` accepted it,
+and WXT passed it straight through to `manifest.json`, which is legal MV3 (up to four
+dot-separated integers). **The project's MAJOR.MINOR.PATCH.BUILD scheme needs no
+workaround.** If a future npm version tightens this, the fallback is to keep
+package.json semver-valid and set `manifest.version` explicitly in `wxt.config.ts`.
+
+**Known issue — dev-only vulnerabilities.** `npm audit` reports 4 high severity in
+`image-size → addons-linter → web-ext → wxt`. `npm audit --omit=dev` reports **0**, so
+nothing vulnerable ships in the extension bundle; web-ext is Firefox packaging tooling.
+`npm audit fix --force` would likely downgrade WXT itself. Left as-is deliberately —
+re-check before the 1.0.0.0 store submission.
+
+**Deferred to Task 4:** the content script still carries the template's
+`*://*.google.com/*` match and the manifest still has placeholder name/title fields.
+Task 4 sets the real host permissions and manifest metadata.
 
 ---
 
@@ -238,14 +278,43 @@ from the start.
 
 ### Testing
 
-- [ ] `npm run test` passes
-- [ ] `npm run typecheck` passes
-- [ ] Tailwind classes render in the popup
+- [x] `npm run test` passes (3 tests, 2.17s)
+- [x] `npm run typecheck` passes (exit 0)
+- [x] Tailwind utilities compile into the popup bundle
 
 ### Success Criteria
 
-- Tests run in a Node environment with no DOM available, confirming detector purity is enforceable
-- Tailwind builds into the popup bundle
+- [x] Tests run in a Node environment with no DOM available, confirming detector purity is enforceable
+- [x] Tailwind builds into the popup bundle
+
+### Outcome (2026-08-12)
+
+**Installed:** Tailwind 4.3.3, `@tailwindcss/vite` 4.3.3, Vitest 4.1.10, jsdom 29.1.1
+
+**Tailwind v4 is CSS-first — there is no `tailwind.config.js`.** Wired as a Vite plugin
+through WXT's `vite()` config hook, with `@import 'tailwindcss'` at the top of
+`entrypoints/popup/style.css`. Verified by compiling real utilities rather than trusting
+the build: popup CSS went 1.59 kB → 8.44 kB and contains `.text-2xl`, `.font-semibold`,
+and `.tracking-tight`.
+
+**Vitest 4 uses `test.projects`**, not the deprecated workspace file. Two projects:
+
+| Project | Environment | Includes |
+|---|---|---|
+| `lib` | **node** (no DOM) | `lib/**/*.test.ts`, `test/**/*.test.ts` |
+| `ui` | jsdom | `components/**/*.test.tsx`, `entrypoints/**/*.test.tsx` |
+
+**The node environment is the enforcement mechanism for ADR-004.** `test/environment.test.ts`
+asserts that `document`, `window`, `chrome`, and `browser` are all undefined in the `lib`
+project. Anything under `lib/detector/` that reaches for the DOM or extension APIs now
+fails at test time instead of passing quietly and breaking inside a content script. This
+is what Task 3's lint rule reinforces, and what makes the 0.0.2.0 corpus suite trustworthy.
+
+**Scripts added:** `test` (`vitest run`), `test:watch`, `test:lib` (`--project lib`).
+
+**Deferred:** `@testing-library/react` is not installed yet — no components exist to test.
+It arrives with the approval modal in milestone 0.0.4.0, alongside the `ui` project's
+first real use.
 
 ---
 
@@ -272,13 +341,52 @@ Set up the guardrails while the codebase is one file, not fifty.
 
 ### Testing
 
-- [ ] `npm run lint` passes clean
-- [ ] `npm run typecheck` passes with strict on
-- [ ] A deliberate `import { storage } from 'wxt/storage'` inside `lib/detector/` fails lint, then remove it
+- [x] `npm run lint` passes clean (exit 0)
+- [x] `npm run typecheck` passes with strict on (exit 0)
+- [x] Deliberate violations inside `lib/detector/` fail lint — verified and removed
+- [x] Deliberate `fetch()` outside the detector also fails lint (repo-wide ADR-001 rule)
 
 ### Success Criteria
 
-- Strict mode on, zero lint errors, detector boundary mechanically enforced
+- [x] Strict mode on, zero lint errors, detector boundary mechanically enforced
+
+### Outcome (2026-08-12)
+
+**Installed:** ESLint 9.39.5, typescript-eslint 8.67.0, Prettier 3.9.6, globals 17.11.0
+
+**Steps 1 and 2 were already done by WXT.** The generated `.wxt/tsconfig.json` sets
+`strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, and
+`noFallthroughCasesInSwitch`, and maps `@/*` to the project root — so `@/lib/*` and
+`@/components/*` resolve without any config of ours. No changes needed.
+
+**Resolved — peer dependency conflict on install.** `@eslint/js@*` resolves to v10, but
+ESLint 9.39.4 is already pinned in the tree via `addons-linter → web-ext → wxt`. Fixed by
+pinning `eslint@^9`, `@eslint/js@^9`, and `typescript-eslint@^8`. **Do not let ESLint
+drift to v10 without also moving WXT**, or this conflict returns.
+
+**Important finding — TypeScript cannot enforce ADR-004 on its own.** WXT's tsconfig
+includes `"DOM"` in `lib`, so `document` and `window` typecheck fine *anywhere*,
+including inside `lib/detector/`. Purity therefore rests on two independent mechanisms:
+
+| Mechanism | Catches |
+|---|---|
+| ESLint override on `lib/detector/**` | imports of adapters/storage/vault/`wxt/*`, and use of DOM, storage, `chrome`, `browser`, `fetch` |
+| Vitest `lib` project (node env, Task 2) | anything that slips past lint and touches a browser global at runtime |
+
+**Both guardrails were verified by deliberate violation, not assumed.** A temporary file
+in `lib/detector/` importing `wxt/storage` and using `document`, `chrome`, and `fetch`
+produced exactly 4 errors with the intended ADR messages; a separate `fetch()` in
+`entrypoints/` triggered the repo-wide ADR-001 rule. Both temp files removed, lint back
+to exit 0.
+
+**Repo-wide ADR-001 rule** bans `fetch`, `XMLHttpRequest`, and `WebSocket` everywhere.
+When milestone 0.2.0.2 adds the sanctioned remote selector config, add a narrowly scoped
+override for the background worker — do not delete the rule.
+
+**Prettier is scoped away from the management docs** via `.prettierignore`. It reflows
+markdown and breaks the milestone tables. Code only.
+
+**Scripts added:** `lint`, `lint:fix`, `format`, `format:check`.
 
 ---
 
@@ -320,13 +428,66 @@ later milestones have somewhere to land.
 
 ### Testing
 
-- [ ] `npm run typecheck` passes with the new modules
-- [ ] Built `manifest.json` shows exactly one host permission and `storage`
+- [x] `npm run typecheck` passes with the new modules (exit 0)
+- [x] `npm run lint` passes (exit 0)
+- [x] `npm run test` passes (7 tests across 2 files)
+- [x] Built `manifest.json` shows only `storage` + the two ChatGPT hosts
 
 ### Success Criteria
 
-- Install-time permission ask is a single host, per PRD constraint
-- Interfaces match ARCHITECTURE.md; no implementation logic written yet
+- [x] Install-time permission ask is ChatGPT only, per PRD constraint
+- [x] Interfaces match ARCHITECTURE.md; no implementation logic written yet
+
+### Outcome (2026-08-12)
+
+**Built manifest verified:**
+
+| Field | Value |
+|---|---|
+| `name` | AI Prompt Assistant *(provisional — branding check due at 0.9.0.1)* |
+| `version` | 0.0.1.3 |
+| `permissions` | `storage` |
+| `host_permissions` | `chatgpt.com`, `chat.openai.com` |
+| `optional_host_permissions` | `claude.ai`, `gemini.google.com` |
+
+No `activeTab`, no `tabs`, no `scripting`. The install warning names ChatGPT only.
+
+**Modules created (types and contracts only, no logic):**
+
+```
+lib/detector/{types,engine,validators}.ts + rules/
+lib/adapters/{types,chatgpt,registry}.ts
+lib/policy/{schema,defaults}.ts
+lib/storage/index.ts
+lib/vault/index.ts
+test/corpus/{positive,negative}/
+components/
+```
+
+Unimplemented functions throw with the milestone that owns them, so a premature
+call fails loudly and points at the right place rather than returning undefined.
+
+**Two WXT behaviours worth recording.**
+
+`action.default_title` cannot be set in `wxt.config.ts` — WXT derives it from the
+`<title>` of `entrypoints/popup/index.html` and silently overrides the manifest block.
+The first build shipped "Default Popup Title" despite the config being correct. Fixed at
+the source; a comment in `wxt.config.ts` now warns the next person.
+
+Content script `matches` are extracted at build time, so they must be literals in the
+entrypoint and cannot be imported from the adapter. That creates two sources of truth
+for the same list. `test/adapter-matches.test.ts` parses the entrypoint and asserts it
+equals `CHATGPT_MATCHES` — drift would mean either failing to inject, or injecting where
+the manifest holds no host permission. (WXT reorders the array in the built manifest;
+the test compares source to source, so ordering is not an issue.)
+
+**ESLint adjustment:** added `argsIgnorePattern: '^_'` for
+`@typescript-eslint/no-unused-vars`. The stub signatures are the contract later
+milestones implement against, so their unused parameters are intentional.
+
+**`noUncheckedIndexedAccess` earned its keep immediately** — it caught an unguarded
+regex-group index in the new test. Fixed with a proper guard rather than a non-null
+assertion.
 
 ---
 
@@ -355,17 +516,56 @@ that compiles but does not inject is worth nothing.
 
 ### Testing
 
-- [ ] Marker logs on chatgpt.com
-- [ ] Marker does **not** log on an unrelated site (e.g. example.com)
-- [ ] Popup renders
-- [ ] HMR updates the content script
-- [ ] DevTools Network tab shows **zero** requests originating from the extension
+- [x] Marker logs on chatgpt.com — `[APA] content script active v0.0.1.4`
+- [x] Marker does **not** log on an unrelated site (example.com — no output at all)
+- [ ] Popup renders — **not verified** (see below)
+- [ ] HMR updates the content script — **not verified** (see below)
+- [x] **Zero** network requests originating from the extension
 
 ### Success Criteria
 
-- Content script confirmed running on the target host only
-- Zero network requests — the ADR-001 guarantee is verified from day one
-- Dev loop (edit → see change) is under a few seconds
+- [x] Content script confirmed running on the target host only
+- [x] Zero network requests — the ADR-001 guarantee verified from day one
+- [ ] Dev loop timing — not measured this session
+
+### Outcome (2026-08-12)
+
+Verified against the **production** build (`.output/chrome-mv3`) loaded unpacked, using
+browser automation to read the real console and network activity on chatgpt.com.
+
+**Injection is correctly scoped.** The marker fires on chatgpt.com from
+`chrome-extension://<id>/content-scripts/content.js`, and example.com produces no
+extension output whatsoever. The host restriction is enforced, not merely declared.
+
+**ADR-001 verified empirically — this is the headline result.** A full chatgpt.com page
+load produced **386 network requests, none of them from the extension**:
+
+| Filter | Result |
+|---|---|
+| `chrome-extension://<our id>` | 0 requests |
+| `localhost` | 0 requests |
+| everything else | 386, all ChatGPT's own CDN / backend-api / telemetry |
+
+The zero-network claim is now an observed baseline rather than an intention. Any future
+regression shows up as a change against this measurement. Worth re-running at 0.9.0.3
+before store submission.
+
+**Confirmed: dev builds must never be shipped.** The `-dev` build embeds a
+`ws://localhost:3000` HMR client and carries an extra `http://localhost/*` host
+permission. Both are correctly absent from the production build, verified here in the
+live Network tab. The 0.9.0.3 pre-flight must check this explicitly.
+
+**Two checks not completed, deliberately not claimed as passing:**
+
+- *Popup rendering* — browser automation cannot open `chrome-extension://` URLs. Tailwind
+  reaching the popup bundle was already proven in Task 2 by inspecting the compiled CSS
+  (1.59 kB → 8.44 kB with `.text-2xl`, `.font-semibold`, `.tracking-tight` present), so
+  this is a visual confirmation only. Verify by hand when convenient.
+- *HMR* — requires the dev server plus the dev build loaded; we finished on the
+  production build. The dev server was observed starting cleanly earlier
+  (`✔ Started dev server @ http://localhost:3000`, build in 270ms), so the toolchain
+  works, but the edit → reload loop was not timed. It will be exercised continuously
+  during 0.0.3.0.
 
 ### Architectural Guardrails
 

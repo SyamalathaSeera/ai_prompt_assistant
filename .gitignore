@@ -4,9 +4,21 @@ node_modules/
 # WXT build output
 .output/
 .wxt/
+stats.html
+stats-*.json
+
+# local web-ext overrides (may contain machine-specific paths)
+web-ext.config.ts
 
 # packaged extension
 *.zip
+
+# logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
 # env / secrets
 .env
