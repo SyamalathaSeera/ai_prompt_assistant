@@ -146,29 +146,24 @@ describe('platforms', () => {
     expect(container.textContent).toContain('Only ChatGPT is requested when you install');
   });
 
-  it('requests permission when a platform is enabled', async () => {
-    const request = vi.fn().mockResolvedValue(true);
-    fakeBrowser.permissions.request = request;
-    fakeBrowser.permissions.contains = () => Promise.resolve(false);
-
+  it('offers every supported platform as an enableable toggle', async () => {
     mount();
     await ready();
 
-    // Claude has no adapter yet, so its toggle is disabled — assert the wiring
-    // through the helper instead of clicking a deliberately inert control.
-    const { PLATFORMS, requestPermission } = await import('@/lib/adapters/platforms');
-    const claude = PLATFORMS.find((p) => p.id === 'claude')!;
-    await requestPermission(claude);
-
-    expect(request).toHaveBeenCalledWith({ origins: ['https://claude.ai/*'] });
+    for (const id of ['claude', 'gemini']) {
+      const toggle = $(`platform-${id}`) as HTMLInputElement;
+      expect(toggle, `missing toggle for ${id}`).not.toBeNull();
+      expect(toggle.disabled, `${id} should be enableable`).toBe(false);
+    }
   });
 
-  it('reports a platform whose adapter is not built yet', async () => {
+  it('states Gemini’s limitation before it is turned on', async () => {
+    // A partial capability discovered as a silent absence feels like a bug;
+    // the same gap stated up front is just a known limit.
     mount();
     await ready();
 
-    expect(($('platform-claude') as HTMLInputElement).disabled).toBe(true);
-    expect(container.textContent).toContain('Support is not built yet');
+    expect(container.textContent).toContain('Restoring values in replies is not supported');
   });
 });
 

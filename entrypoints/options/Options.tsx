@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'preact/hooks';
 import { ALL_RULES } from '@/lib/detector/rules';
 import type { Rule } from '@/lib/detector/types';
 import {
+  disablePlatform,
+  enablePlatform,
   hasPermission,
   PLATFORMS,
-  requestPermission,
-  revokePermission,
   type Platform,
 } from '@/lib/adapters/platforms';
 import { deleteAllData, getSettings, setSettings } from '@/lib/storage';
@@ -109,22 +109,39 @@ function RuleGroup({
 
 function PlatformRow({ platform }: { platform: Platform }) {
   const [granted, setGranted] = useState<boolean | null>(null);
-  const [denied, setDenied] = useState(false);
+  const [outcome, setOutcome] = useState<'denied' | 'failed' | null>(null);
 
   useEffect(() => {
     void hasPermission(platform).then(setGranted);
   }, [platform]);
 
-  // Called straight from the click handler: awaiting first would lose the user
-  // gesture, and Chrome rejects a permission request without one.
+  /**
+   * Called straight from the click handler.
+   *
+   * `permissions.request()` must run inside the user gesture — awaiting
+   * anything first loses it and Chrome rejects the request outright. So the
+   * async work is started here and its result handled in a `.then`, rather
+   * than making this handler `async`.
+   */
   const toggle = (next: boolean) => {
-    setDenied(false);
-    const action = next ? requestPermission(platform) : revokePermission(platform);
-    void action.then((ok) => {
-      if (next && !ok) setDenied(true);
+    setOutcome(null);
+
+    if (!next) {
+      void disablePlatform(platform).then(() => {
+        void hasPermission(platform).then(setGranted);
+      });
+      return;
+    }
+
+    void enablePlatform(platform).then((result) => {
+      if (result !== 'enabled') setOutcome(result);
       void hasPermission(platform).then(setGranted);
     });
   };
+
+  const description = platform.required
+    ? 'Granted at install. This is the only site requested up front.'
+    : (platform.limitation ?? 'Asks for permission when you turn it on.');
 
   return (
     <div>
@@ -134,18 +151,23 @@ function PlatformRow({ platform }: { platform: Platform }) {
         disabled={platform.required || !platform.supported}
         onChange={toggle}
         label={platform.label}
-        description={
-          platform.required
-            ? 'Granted at install. This is the only site requested up front.'
-            : platform.supported
-              ? 'Asks for permission when you turn it on.'
-              : 'Support is not built yet.'
-        }
+        description={description}
       />
-      {denied && (
+
+      {/*
+        "You declined" and "it broke" need different words: the first is the
+        user's own choice and needs no apology, the second is our problem.
+      */}
+      {outcome === 'denied' && (
         <p className="mt-1 text-xs" data-testid={`platform-denied-${platform.id}`}>
           Permission was declined, so {platform.label} is not protected. Nothing else
           changed.
+        </p>
+      )}
+      {outcome === 'failed' && (
+        <p className="mt-1 text-xs" data-testid={`platform-failed-${platform.id}`}>
+          Permission was granted but {platform.label} could not be set up. Try turning it
+          off and on again.
         </p>
       )}
     </div>

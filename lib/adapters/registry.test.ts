@@ -13,16 +13,26 @@ describe('resolveAdapter', () => {
     expect(resolveAdapter(hostname)?.id).toBe('chatgpt');
   });
 
-  it.each([
-    'example.com',
-    'claude.ai',
-    'gemini.google.com',
-    '',
-    '   ',
-    'openai.com',
-  ])('returns null for %s', (hostname) => {
-    expect(resolveAdapter(hostname)).toBeNull();
-  });
+  it.each(['claude.ai', 'www.claude.ai', 'CLAUDE.AI'])(
+    'resolves %s to the Claude adapter',
+    (hostname) => {
+      expect(resolveAdapter(hostname)?.id).toBe('claude');
+    },
+  );
+
+  it.each(['gemini.google.com', 'www.gemini.google.com'])(
+    'resolves %s to the Gemini adapter',
+    (hostname) => {
+      expect(resolveAdapter(hostname)?.id).toBe('gemini');
+    },
+  );
+
+  it.each(['example.com', '', '   ', 'openai.com', 'google.com'])(
+    'returns null for %s',
+    (hostname) => {
+      expect(resolveAdapter(hostname)).toBeNull();
+    },
+  );
 
   it('does not let a lookalike domain masquerade as a supported host', () => {
     // The suffix match anchors on a leading dot, so only genuine subdomains
@@ -47,7 +57,7 @@ describe('isSupportedHost', () => {
 
 describe('allAdapters', () => {
   it('exposes every registered adapter', () => {
-    expect(allAdapters().map((a) => a.id)).toEqual(['chatgpt']);
+    expect(allAdapters().map((a) => a.id)).toEqual(['chatgpt', 'claude', 'gemini']);
   });
 
   it('gives every adapter a distinct id', () => {
