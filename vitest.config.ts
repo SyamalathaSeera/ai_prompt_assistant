@@ -34,6 +34,8 @@ export default defineConfig({
           environment: 'node',
           include: [
             'lib/detector/**/*.test.ts',
+            // policy/allowlist and policy/migrate are pure; policy has no
+            // browser dependency of its own.
             'lib/policy/**/*.test.ts',
             'test/**/*.test.ts',
           ],
@@ -51,6 +53,7 @@ export default defineConfig({
             // browser-dependent code rather than the pure `lib` project.
             'lib/vault/**/*.test.ts',
             'lib/rehydrate/**/*.test.ts',
+            'lib/storage/**/*.test.ts',
             'components/**/*.test.{ts,tsx}',
             'entrypoints/**/*.test.{ts,tsx}',
           ],

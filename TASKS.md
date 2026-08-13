@@ -1,7 +1,7 @@
 # TASKS.md: AI Prompt Assistant Milestone Tracker
 
 **Last Updated**: 2026-08-13
-**Current Version**: 0.0.5.4
+**Current Version**: 0.0.6.4
 
 ---
 
@@ -14,6 +14,7 @@
 | [0.0.3.0](./tasks/Milestone0.0.3.0.md) | Complete | 2026-08-13 | 6/6 | Site adapter layer + submit/paste interception |
 | [0.0.4.0](./tasks/Milestone0.0.4.0.md) | Complete | 2026-08-13 | 6/6 | Approval modal + risk badge (Shadow DOM UI) |
 | [0.0.5.0](./tasks/Milestone0.0.5.0.md) | Complete | 2026-08-13 | 5/5 | Vault + response re-hydration |
+| [0.0.6.0](./tasks/Milestone0.0.6.0.md) | Complete | 2026-08-13 | 5/5 | Settings, allowlist, popup + options page |
 
 ---
 
@@ -21,7 +22,7 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.0.6.0](./tasks/Milestone0.0.6.0.md) | Ready | MEDIUM | Settings, allowlist, popup + options page |
+| [0.1.0.0](./tasks/Milestone0.1.0.0.md) | Ready | MEDIUM | Multi-platform adapters (Claude, Gemini) |
 
 ---
 
@@ -29,7 +30,6 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.1.0.0](./tasks/Milestone0.1.0.0.md) | Planning | MEDIUM | Multi-platform adapters (Claude, Gemini) |
 | [0.2.0.0](./tasks/Milestone0.2.0.0.md) | Planning | HIGH | Hardening, resilience, performance, e2e, a11y |
 | [0.3.0.0](./tasks/Milestone0.3.0.0.md) | Planning | HIGH | Onboarding and first-run experience |
 | [0.9.0.0](./tasks/Milestone0.9.0.0.md) | Planning | HIGH | Beta: unlisted store deploy + real-user testing |

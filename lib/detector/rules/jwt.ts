@@ -65,6 +65,7 @@ export function hasValidJwtHeader(token: string): boolean {
 export const jsonWebToken = defineRule({
   id: 'auth.jwt',
   label: 'JSON Web Token',
+  description: 'Session and access tokens in JSON Web Token format',
   token: 'JWT',
   pattern: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}/g,
   validate: (value) => hasValidJwtHeader(value),

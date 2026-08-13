@@ -37,6 +37,7 @@ const EXAMPLE_DOMAINS = [
 export const emailAddress = defineRule({
   id: 'pii.email',
   label: 'Email Address',
+  description: 'Email addresses, excluding documentation examples',
   token: 'EMAIL',
   tier: 'low',
   pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b/g,
@@ -55,6 +56,7 @@ export const emailAddress = defineRule({
 export const phoneNumber = defineRule({
   id: 'pii.phone',
   label: 'Phone Number',
+  description: 'Phone numbers written in international or dashed format',
   token: 'PHONE',
   tier: 'low',
   pattern:
@@ -84,6 +86,7 @@ function isPlausibleSsn(value: string): boolean {
 export const socialSecurityNumber = defineRule({
   id: 'pii.ssn',
   label: 'Social Security Number',
+  description: 'US Social Security Numbers in 000-00-0000 format',
   token: 'SSN',
   tier: 'low',
   pattern: /\b\d{3}-\d{2}-\d{4}\b/g,
@@ -119,6 +122,7 @@ function isPlausibleIpv4(value: string, ctx: MatchContext): boolean {
 export const ipv4Address = defineRule({
   id: 'pii.ipv4',
   label: 'IP Address',
+  description: 'IP addresses. Off by default: version numbers look identical',
   token: 'IP_ADDRESS',
   tier: 'low',
   pattern: /\b\d{1,3}(?:\.\d{1,3}){3}\b/g,
@@ -129,6 +133,7 @@ export const ipv4Address = defineRule({
 export const internalHostname = defineRule({
   id: 'pii.internal_hostname',
   label: 'Internal Hostname',
+  description: 'Hostnames ending .internal, .corp or .lan that reveal private infrastructure',
   token: 'INTERNAL_HOST',
   tier: 'low',
   pattern:
@@ -144,6 +149,7 @@ export const internalHostname = defineRule({
 export const streetAddress = defineRule({
   id: 'pii.street_address',
   label: 'Street Address',
+  description: 'US-style street addresses. Off by default: the noisiest rule here',
   token: 'ADDRESS',
   tier: 'low',
   pattern:

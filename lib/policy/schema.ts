@@ -14,6 +14,21 @@ export type { PlaceholderStyle };
 
 export type HighTierBehavior = 'block' | 'warn';
 
+/**
+ * One allowlisted value.
+ *
+ * `hash` is a SHA-256 digest — one-way, so the value can be recognised but
+ * never recovered or displayed. The remaining fields exist purely so the
+ * options page can show a list a person can act on.
+ */
+export interface AllowlistEntry {
+  hash: string;
+  /** Rule label at the time it was allowlisted, e.g. `AWS Access Key ID`. */
+  label: string;
+  /** ISO date, `YYYY-MM-DD`. */
+  addedAt: string;
+}
+
 export interface Settings {
   schemaVersion: number;
 
@@ -36,13 +51,33 @@ export interface Settings {
   disabledRuleIds: string[];
 
   /**
-   * Allowlisted values, stored as hashes only. The plaintext is never
-   * persisted, which means the UI can list entries but never display them.
+   * Values the user has told us never to flag again.
+   *
+   * The plaintext is never persisted, so entries carry only metadata that is
+   * not itself sensitive: which rule caught it, and when it was added. That is
+   * enough to recognise an entry in a list without the list becoming a place
+   * secrets accumulate.
+   *
+   * A masked preview (`AKIA…TIC7`) was considered and rejected: it would put
+   * eight characters of every allowlisted secret on disk permanently, which is
+   * hard to square with a product whose claim is that it does not store your
+   * secrets.
    */
-  allowlistHashes: string[];
+  allowlist: AllowlistEntry[];
 
   /** Hosts the user has explicitly paused, e.g. `chatgpt.com`. */
   pausedHosts: string[];
+
+  /**
+   * Epoch milliseconds until which protection is suspended everywhere, or null.
+   *
+   * A timed pause rather than a toggle, because the honest use case is "I am
+   * about to paste something I know is fine and I do not want to be asked
+   * three times". A pause that stays off until you remember to turn it back on
+   * is a pause that silently becomes permanent — and an uninstall that thinks
+   * it is still installed.
+   */
+  pausedUntil: number | null;
 }
 
 /**
@@ -53,6 +88,15 @@ export interface Counters {
   totalCatches: number;
   /** ruleId -> count */
   byRule: Record<string, number>;
-  /** ISO date of first install, used for the "catches this week" figure. */
+  /**
+   * `YYYY-MM-DD` -> count, trimmed to a rolling window.
+   *
+   * A single running total cannot answer "how many this week", and storing a
+   * timestamp per catch would be an unnecessary record of when the user was
+   * working. A daily histogram answers the question at the coarsest useful
+   * granularity and stays bounded.
+   */
+  byDay: Record<string, number>;
+  /** ISO date of first install. */
   installedAt: string;
 }

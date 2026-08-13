@@ -26,9 +26,9 @@ No backend, no server, no telemetry.
 
 ## Current Status
 
-**Phase**: Milestone 0.0.6.0, Settings + Allowlist + Options
+**Phase**: Milestone 0.1.0.0, Multi-Platform Adapters
 **Last Updated**: 2026-08-13
-**Version**: 0.0.5.4
+**Version**: 0.0.6.4
 
 ### Completed Milestones
 - **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind
@@ -59,8 +59,14 @@ No backend, no server, no telemetry.
   leaving the device. Session-only storage with sliding 4h expiry; hydration is
   display-only and refuses to enter form controls or the composer.
 
+- **0.0.6.0** (2026-08-13): Settings, allowlist, popup, options. 620 tests. Real storage
+  replaces the defaults stub; popup shows catch counts and a timed pause; options page
+  describes every rule in plain language and offers a delete that really deletes.
+  Schema now at v2 — the allowlist gained labels and dates, exercising the migration
+  machinery for real.
+
 ### Active Milestone
-- **Milestone 0.0.6.0**: Settings, allowlist, popup + options page
+- **Milestone 0.1.0.0**: Multi-platform adapters (Claude, Gemini)
 
 ### Planned Next
 - **0.0.2.0**: Detector engine + labeled test corpus

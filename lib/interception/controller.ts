@@ -60,8 +60,17 @@ export interface InterceptorConfig {
   rules?: readonly Rule[];
 }
 
-/** Whether this host is currently exempt from interception. */
-function isPaused(settings: Settings, hostname: string): boolean {
+/**
+ * Whether protection is currently suspended for this host.
+ *
+ * Two mechanisms: a permanent per-host pause, and a global timed pause that
+ * expires on its own. The timed one is compared against the clock on every
+ * check rather than being cleared by a timer, so it cannot outlive its window
+ * because a service worker was asleep when it should have fired.
+ */
+export function isPaused(settings: Settings, hostname: string, now = Date.now()): boolean {
+  if (settings.pausedUntil !== null && now < settings.pausedUntil) return true;
+
   const host = hostname.toLowerCase().replace(/^www\./, '');
   return settings.pausedHosts.some((h) => host === h.toLowerCase());
 }

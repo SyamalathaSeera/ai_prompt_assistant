@@ -17,6 +17,7 @@ import type { Rule } from '../types';
 export const pemPrivateKey = defineRule({
   id: 'crypto.pem_private_key',
   label: 'Private Key Block',
+  description: 'Whole private key files, from the BEGIN line to the END line',
   token: 'PRIVATE_KEY',
   // Placeholder heuristics target short values and say nothing useful about a
   // multi-line armoured block.
@@ -35,6 +36,7 @@ export const pemPrivateKey = defineRule({
 export const pemPrivateKeyHeader = defineRule({
   id: 'crypto.pem_private_key_header',
   label: 'Private Key Header',
+  description: 'The opening line of a private key, in case only part was pasted',
   token: 'PRIVATE_KEY',
   pattern: /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----/g,
 });
@@ -43,6 +45,7 @@ export const pemPrivateKeyHeader = defineRule({
 export const puttyPrivateKey = defineRule({
   id: 'crypto.putty_private_key',
   label: 'PuTTY Private Key',
+  description: 'PuTTY .ppk private key files',
   token: 'PRIVATE_KEY',
   pattern: /PuTTY-User-Key-File-\d+:\s*\S+/g,
 });

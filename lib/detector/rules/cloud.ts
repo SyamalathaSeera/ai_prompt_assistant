@@ -16,6 +16,7 @@ import type { Rule } from '../types';
 export const awsAccessKeyId = defineRule({
   id: 'aws.access_key_id',
   label: 'AWS Access Key ID',
+  description: 'Keys beginning AKIA or ASIA that identify an AWS account',
   token: 'AWS_ACCESS_KEY_ID',
   pattern: /\b(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}\b/g,
 });
@@ -31,6 +32,7 @@ export const awsAccessKeyId = defineRule({
 export const awsSecretAccessKey = defineRule({
   id: 'aws.secret_access_key',
   label: 'AWS Secret Access Key',
+  description: 'The secret half of an AWS key pair, when labelled as one',
   token: 'AWS_SECRET',
   pattern:
     /aws_secret_access_key\s*[:=]\s*["']?([A-Za-z0-9/+=]{40})["']?/gi,
@@ -44,6 +46,7 @@ export const awsSecretAccessKey = defineRule({
 export const gcpApiKey = defineRule({
   id: 'gcp.api_key',
   label: 'Google API Key',
+  description: 'Google Cloud and Maps API keys beginning AIza',
   token: 'GOOGLE_API_KEY',
   pattern: /\bAIza[0-9A-Za-z_-]{35}\b/g,
 });

@@ -16,6 +16,7 @@ import type { Rule } from '../types';
 export const anthropicApiKey = defineRule({
   id: 'anthropic.api_key',
   label: 'Anthropic API Key',
+  description: 'Anthropic API keys beginning sk-ant-',
   token: 'ANTHROPIC_KEY',
   pattern: /\bsk-ant-[A-Za-z0-9_-]{20,}/g,
 });
@@ -28,6 +29,7 @@ export const anthropicApiKey = defineRule({
 export const openaiApiKey = defineRule({
   id: 'openai.api_key',
   label: 'OpenAI API Key',
+  description: 'OpenAI API keys beginning sk-, including project keys',
   token: 'OPENAI_KEY',
   pattern: /\bsk-(?!ant-)(?:proj-|svcacct-|admin-)?[A-Za-z0-9_-]{20,}/g,
 });
@@ -36,6 +38,7 @@ export const openaiApiKey = defineRule({
 export const githubToken = defineRule({
   id: 'github.token',
   label: 'GitHub Token',
+  description: 'GitHub personal access tokens beginning ghp_, gho_ or similar',
   token: 'GITHUB_TOKEN',
   pattern: /\bgh[pousr]_[A-Za-z0-9]{36}\b/g,
 });
@@ -44,6 +47,7 @@ export const githubToken = defineRule({
 export const githubFineGrainedToken = defineRule({
   id: 'github.pat_fine_grained',
   label: 'GitHub Fine-Grained Token',
+  description: 'GitHub fine-grained tokens beginning github_pat_',
   token: 'GITHUB_TOKEN',
   pattern: /\bgithub_pat_[A-Za-z0-9_]{50,}\b/g,
 });
@@ -52,6 +56,7 @@ export const githubFineGrainedToken = defineRule({
 export const slackToken = defineRule({
   id: 'slack.token',
   label: 'Slack Token',
+  description: 'Slack bot, user and app tokens beginning xox',
   token: 'SLACK_TOKEN',
   pattern: /\bxox[baprse]-[A-Za-z0-9-]{10,}/g,
 });
@@ -66,6 +71,7 @@ export const slackToken = defineRule({
 export const stripeLiveKey = defineRule({
   id: 'stripe.live_key',
   label: 'Stripe Live Key',
+  description: 'Stripe live keys that can move real money. Test keys are ignored',
   token: 'STRIPE_KEY',
   pattern: /\b(?:sk|rk)_live_[A-Za-z0-9]{20,}\b/g,
 });
@@ -74,6 +80,7 @@ export const stripeLiveKey = defineRule({
 export const sendgridApiKey = defineRule({
   id: 'sendgrid.api_key',
   label: 'SendGrid API Key',
+  description: 'SendGrid API keys beginning SG.',
   token: 'SENDGRID_KEY',
   pattern: /\bSG\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/g,
 });

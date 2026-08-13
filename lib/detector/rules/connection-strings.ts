@@ -16,6 +16,7 @@ import type { Rule } from '../types';
 export const connectionStringPassword = defineRule({
   id: 'db.connection_string_password',
   label: 'Database Connection Password',
+  description: 'Passwords inside database URLs such as postgres:// or mongodb://',
   token: 'DB_PASSWORD',
   pattern:
     /\b(?:postgres|postgresql|mysql|mariadb|mongodb(?:\+srv)?|redis|rediss|amqp|amqps|ftp|sftp|jdbc:[a-z0-9]+):\/\/[^\s:/@]+:([^\s@/]{3,})@[^\s/]+/gi,

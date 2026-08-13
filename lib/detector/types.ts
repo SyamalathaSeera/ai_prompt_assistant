@@ -71,6 +71,16 @@ export interface MatchContext {
 export interface Rule {
   id: string;
   label: string;
+  /**
+   * One line of plain language for the options page, e.g.
+   * "Keys beginning AKIA that identify an AWS account".
+   *
+   * Lives on the rule rather than in a lookup table in the UI: a description
+   * maintained separately would drift from what the rule actually matches, and
+   * a settings page that misdescribes what it controls is worse than one with
+   * no descriptions at all.
+   */
+  description?: string;
   tier: Tier;
   /** Global regex. The engine handles lastIndex management. */
   pattern: RegExp;

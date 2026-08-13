@@ -1,4 +1,5 @@
 import type { Finding } from '../detector/types';
+import type { AllowlistEntry } from './schema';
 
 /**
  * Allowlist: values the user has told us never to flag again.
@@ -35,11 +36,11 @@ export async function hashValue(value: string): Promise<string> {
 export async function filterAllowlisted(
   text: string,
   findings: readonly Finding[],
-  allowlistHashes: readonly string[],
+  entries: readonly AllowlistEntry[],
 ): Promise<Finding[]> {
-  if (allowlistHashes.length === 0 || findings.length === 0) return [...findings];
+  if (entries.length === 0 || findings.length === 0) return [...findings];
 
-  const allowed = new Set(allowlistHashes);
+  const allowed = new Set(entries.map((entry) => entry.hash));
 
   // Distinct values only — the same secret often appears several times.
   const values = [...new Set(findings.map((f) => text.slice(f.start, f.end)))];
@@ -54,19 +55,37 @@ export async function filterAllowlisted(
   return findings.filter((f) => !suppressed.has(text.slice(f.start, f.end)));
 }
 
-/** Adds a value to the allowlist, returning the updated hash list. */
+/**
+ * Adds a value to the allowlist, returning the updated list.
+ *
+ * `label` is the rule's own label, stored so the options page can show a list
+ * a person can act on. The value itself is hashed and then discarded.
+ */
 export async function addToAllowlist(
   value: string,
-  allowlistHashes: readonly string[],
-): Promise<string[]> {
+  entries: readonly AllowlistEntry[],
+  label: string,
+  today = new Date().toISOString().slice(0, 10),
+): Promise<AllowlistEntry[]> {
   const hash = await hashValue(value);
-  return allowlistHashes.includes(hash) ? [...allowlistHashes] : [...allowlistHashes, hash];
+  if (entries.some((entry) => entry.hash === hash)) return [...entries];
+
+  return [...entries, { hash, label, addedAt: today }];
+}
+
+/** Removes an entry by its hash. */
+export function removeFromAllowlist(
+  hash: string,
+  entries: readonly AllowlistEntry[],
+): AllowlistEntry[] {
+  return entries.filter((entry) => entry.hash !== hash);
 }
 
 /** Whether a value is already allowlisted. */
 export async function isAllowlisted(
   value: string,
-  allowlistHashes: readonly string[],
+  entries: readonly AllowlistEntry[],
 ): Promise<boolean> {
-  return allowlistHashes.includes(await hashValue(value));
+  const hash = await hashValue(value);
+  return entries.some((entry) => entry.hash === hash);
 }
