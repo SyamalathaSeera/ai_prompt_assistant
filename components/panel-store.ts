@@ -37,10 +37,13 @@ export interface PanelStoreConfig {
   /**
    * Called when the user permanently allowlists a value.
    *
+   * Receives the rule's label alongside the value, so the stored entry can be
+   * identified in the options page without the plaintext being kept.
+   *
    * Async and impure — hashing and storage live outside the detector, per
-   * ADR-004. Wired to real storage in milestone 0.0.6.0.
+   * ADR-004.
    */
-  onAllowlist?: (value: string) => void;
+  onAllowlist?: (value: string, label: string) => void;
 }
 
 export interface PanelStore {
@@ -165,8 +168,11 @@ export function createPanelStore(config: PanelStoreConfig = {}): PanelStore {
     allowlist(placeholder) {
       if (state.kind !== 'active' || state.phase === 'applying') return;
 
+      const finding = state.submission.findings.find(
+        (f) => f.placeholder === placeholder,
+      );
       const value = valueFor(state.submission, placeholder);
-      if (value !== null) config.onAllowlist?.(value);
+      if (value !== null) config.onAllowlist?.(value, finding?.label ?? 'Allowlisted value');
 
       // Also stop redacting it here. Allowlisting means "this is fine" — it
       // would be incoherent to record that and still replace it in this

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { detect } from '../detector/engine';
 import { ALL_RULES } from '../detector/rules';
-import { addToAllowlist, filterAllowlisted, hashValue, isAllowlisted } from './allowlist';
+import {
+  addToAllowlist,
+  filterAllowlisted,
+  hashValue,
+  isAllowlisted,
+  removeFromAllowlist,
+} from './allowlist';
+import type { AllowlistEntry } from './schema';
 
 const AWS_KEY = 'AKIA3TZ2MRSYNTHETIC7';
 
@@ -30,32 +37,65 @@ describe('hashValue', () => {
 
 describe('addToAllowlist', () => {
   it('stores a hash, never the value', async () => {
-    const list = await addToAllowlist(AWS_KEY, []);
+    const list = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
     expect(list).toHaveLength(1);
     expect(JSON.stringify(list)).not.toContain(AWS_KEY);
   });
 
   it('is idempotent', async () => {
-    const once = await addToAllowlist(AWS_KEY, []);
-    const twice = await addToAllowlist(AWS_KEY, once);
+    const once = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
+    const twice = await addToAllowlist(AWS_KEY, once, 'AWS Access Key ID', '2026-08-13');
     expect(twice).toEqual(once);
   });
 
   it('does not mutate the list it was given', async () => {
-    const original: string[] = [];
-    await addToAllowlist(AWS_KEY, original);
+    const original: AllowlistEntry[] = [];
+    await addToAllowlist(AWS_KEY, original, 'AWS Access Key ID', '2026-08-13');
     expect(original).toEqual([]);
+  });
+
+  it('records the rule label and date, never the value', async () => {
+    // Enough to recognise an entry in a list, without the list becoming a
+    // place secrets accumulate.
+    const [entry] = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
+
+    expect(entry!.label).toBe('AWS Access Key ID');
+    expect(entry!.addedAt).toBe('2026-08-13');
+    expect(entry!.hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(entry)).not.toContain(AWS_KEY);
+  });
+});
+
+describe('removeFromAllowlist', () => {
+  it('removes by hash', async () => {
+    const list = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
+    expect(removeFromAllowlist(list[0]!.hash, list)).toEqual([]);
+  });
+
+  it('leaves other entries alone', async () => {
+    let list = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
+    list = await addToAllowlist('other-secret', list, 'Stripe Live Key', '2026-08-13');
+
+    const remaining = removeFromAllowlist(list[0]!.hash, list);
+
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0]!.label).toBe('Stripe Live Key');
+  });
+
+  it('is a no-op for an unknown hash', async () => {
+    const list = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
+    expect(removeFromAllowlist('nope', list)).toEqual(list);
   });
 });
 
 describe('isAllowlisted', () => {
   it('recognises a stored value', async () => {
-    const list = await addToAllowlist(AWS_KEY, []);
+    const list = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
     expect(await isAllowlisted(AWS_KEY, list)).toBe(true);
   });
 
   it('rejects an unknown value', async () => {
-    const list = await addToAllowlist(AWS_KEY, []);
+    const list = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
     expect(await isAllowlisted('AKIAIOSFODNN7EXAMPLE', list)).toBe(false);
   });
 });
@@ -65,7 +105,7 @@ describe('filterAllowlisted', () => {
 
   it('removes only the allowlisted finding', async () => {
     const findings = detect(text, {}, ALL_RULES);
-    const list = await addToAllowlist(AWS_KEY, []);
+    const list = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
     const filtered = await filterAllowlisted(text, findings, list);
 
     expect(findings.length).toBeGreaterThan(filtered.length);
@@ -76,7 +116,7 @@ describe('filterAllowlisted', () => {
   it('removes every occurrence of an allowlisted value', async () => {
     const repeated = `a=${AWS_KEY}\nb=${AWS_KEY}\nc=${AWS_KEY}`;
     const findings = detect(repeated, {}, ALL_RULES);
-    const list = await addToAllowlist(AWS_KEY, []);
+    const list = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
 
     expect(findings.length).toBeGreaterThan(1);
     expect(await filterAllowlisted(repeated, findings, list)).toEqual([]);
@@ -88,7 +128,7 @@ describe('filterAllowlisted', () => {
   });
 
   it('is a no-op when there are no findings', async () => {
-    const list = await addToAllowlist(AWS_KEY, []);
+    const list = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
     expect(await filterAllowlisted(text, [], list)).toEqual([]);
   });
 });
@@ -102,7 +142,7 @@ describe('architectural boundary', () => {
     const findings = detect(`key=${AWS_KEY}`, {}, ALL_RULES);
     expect(Array.isArray(findings)).toBe(true);
 
-    const list = await addToAllowlist(AWS_KEY, []);
-    expect(list[0]).toMatch(/^[0-9a-f]{64}$/);
+    const list = await addToAllowlist(AWS_KEY, [], 'AWS Access Key ID', '2026-08-13');
+    expect(list[0]!.hash).toMatch(/^[0-9a-f]{64}$/);
   });
 });

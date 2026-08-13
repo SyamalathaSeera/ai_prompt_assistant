@@ -8,10 +8,12 @@ import { resolveAdapter } from '@/lib/adapters/registry';
 import { createInterceptor } from '@/lib/interception/controller';
 import { createLiveScanner } from '@/lib/interception/live-scan';
 import { createPasteWatcher } from '@/lib/interception/paste';
-import { DEFAULT_SETTINGS } from '@/lib/policy/defaults';
 import { detect, redact } from '@/lib/detector/engine';
 import { findPlaceholders, hydrate, needsHydration } from '@/lib/rehydrate';
 import { putAll, resolve as resolveFromVault } from '@/lib/vault';
+import { getSettingsSync, initSettings, recordCatch, setSettings } from '@/lib/storage';
+import { addToAllowlist, filterAllowlisted } from '@/lib/policy/allowlist';
+import type { Finding } from '@/lib/detector/types';
 import './style.css';
 
 /**
@@ -42,7 +44,31 @@ export default defineContentScript({
 
     console.log(`[APA] content script active v${__APP_VERSION__}`);
 
-    const store = createPanelStore();
+    const store = createPanelStore({
+      /**
+       * "Never flag this value" — permanent, across every conversation.
+       *
+       * Stores a SHA-256 hash, never the plaintext, so the allowlist cannot
+       * itself become a place secrets accumulate.
+       */
+      onAllowlist: (value, label) => {
+        void (async () => {
+          try {
+            // getSettingsSync directly, not the local alias declared further
+            // down: correct either way, but it removes a dependency on
+            // declaration order inside this closure.
+            const allowlist = await addToAllowlist(
+              value,
+              getSettingsSync().allowlist,
+              label,
+            );
+            await setSettings({ allowlist });
+          } catch {
+            /* a failed allowlist costs one more prompt, never the submission */
+          }
+        })();
+      },
+    });
 
     /** Conversation scope for vault entries. See ADR-005. */
     const conversationId = () => adapter.getConversationId?.() ?? 'unsaved';
@@ -131,21 +157,53 @@ export default defineContentScript({
 
     ui.mount();
 
-    // Settings still come from defaults — storage lands in milestone 0.0.6.0.
-    // Read through a getter so wiring real storage later changes one line.
-    const getSettings = () => DEFAULT_SETTINGS;
+    /**
+     * Settings, read synchronously.
+     *
+     * The interception path cannot await storage — `detect()` is synchronous
+     * by design (ADR-004), and an async submit handler would mean the prompt
+     * is already gone by the time settings arrive. So settings are loaded into
+     * a cache and refreshed on change.
+     */
+    const getSettings = getSettingsSync;
+    const stopWatchingSettings = await initSettings();
+
+    /**
+     * Suppresses allowlisted values.
+     *
+     * Hashing is async and lives outside the detector (ADR-004), so it runs
+     * over the findings AFTER detection rather than over every candidate
+     * during it — findings are few, and the scan stays synchronous.
+     */
+    const applyAllowlist = async (text: string, findings: readonly Finding[]) =>
+      filterAllowlisted(text, findings, getSettings().allowlist);
 
     const stopIntercepting = createInterceptor({
       adapter,
       getSettings,
       onHeld: (submission) => {
-        store.present({
-          ...submission,
-          sendReplacement: (replacement) => {
-            rememberRedaction(submission.text, replacement);
-            submission.sendReplacement(replacement);
-          },
-        });
+        void (async () => {
+          const blocking = await applyAllowlist(submission.text, submission.blocking);
+
+          // Everything blocking was allowlisted, so there is nothing to ask
+          // about — release the submission rather than showing an empty modal.
+          if (blocking.length === 0) {
+            submission.sendOriginal();
+            return;
+          }
+
+          for (const finding of blocking) void recordCatch(finding.ruleId);
+
+          store.present({
+            ...submission,
+            blocking,
+            findings: await applyAllowlist(submission.text, submission.findings),
+            sendReplacement: (replacement) => {
+              rememberRedaction(submission.text, replacement);
+              submission.sendReplacement(replacement);
+            },
+          });
+        })();
       },
     });
 
@@ -211,6 +269,7 @@ export default defineContentScript({
       stopLiveScan();
       stopPasteWatch();
       stopObserving();
+      stopWatchingSettings();
       ui.remove();
     });
   },

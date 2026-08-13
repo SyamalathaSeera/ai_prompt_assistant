@@ -24,6 +24,7 @@ import type { Rule } from '../types';
 export const envSecretAssignment = defineRule({
   id: 'env.secret_assignment',
   label: 'Secret in Configuration',
+  description: 'Values assigned to names containing SECRET, TOKEN, PASSWORD or similar',
   token: 'ENV_SECRET',
   pattern:
     /(?:^|[\r\n])[ \t]*(?:export[ \t]+)?[A-Za-z0-9_.-]*(?:SECRET|TOKEN|PASSWORD|PASSWD|APIKEY|API_KEY|PRIVATE_KEY|ACCESS_KEY|CREDENTIAL|AUTH)[A-Za-z0-9_.-]*[ \t]*[:=][ \t]*["']?([^\s"'`#(){}$<>[\],]{8,})["']?/gi,

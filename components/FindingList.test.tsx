@@ -151,7 +151,11 @@ describe('allowlisting', () => {
 
     $('apa-finding-allowlist')!.click();
 
-    await waitFor(() => expect(onAllowlist).toHaveBeenCalledWith(AWS_KEY));
+    // The label travels with the value so the options page can list the entry
+    // by what caught it, without the plaintext ever being stored.
+    await waitFor(() =>
+      expect(onAllowlist).toHaveBeenCalledWith(AWS_KEY, 'AWS Access Key ID'),
+    );
   });
 
   it('stops redacting the value in this prompt too', async () => {

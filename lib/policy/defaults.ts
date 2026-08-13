@@ -1,7 +1,14 @@
 import { DEFAULT_DISABLED_RULE_IDS } from '../detector/rules';
 import type { Counters, Settings } from './schema';
 
-export const SCHEMA_VERSION = 1;
+/**
+ * Settings schema version.
+ *
+ * 1 — first shipped shape
+ * 2 — `allowlistHashes: string[]` became `allowlist: AllowlistEntry[]`, so the
+ *     options page can list entries with a label and a date
+ */
+export const SCHEMA_VERSION = 2;
 
 /**
  * Default settings.
@@ -22,12 +29,21 @@ export const DEFAULT_SETTINGS: Settings = {
   // Sourced from the rule definitions themselves so the default experience
   // and the rules cannot drift apart.
   disabledRuleIds: [...DEFAULT_DISABLED_RULE_IDS],
-  allowlistHashes: [],
+  allowlist: [],
   pausedHosts: [],
+  pausedUntil: null,
 };
+
+/** How long "pause protection" lasts. Long enough to finish a task, short
+ * enough that forgetting about it is self-correcting. */
+export const PAUSE_DURATION_MS = 15 * 60 * 1000;
 
 export const DEFAULT_COUNTERS: Counters = {
   totalCatches: 0,
   byRule: {},
+  byDay: {},
   installedAt: '',
 };
+
+/** How many days of catch history the popup keeps. */
+export const COUNTER_HISTORY_DAYS = 30;

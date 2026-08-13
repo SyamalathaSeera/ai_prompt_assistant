@@ -61,6 +61,7 @@ const PUBLISHED_TEST_CARDS = new Set([
 export const creditCardNumber = defineRule({
   id: 'financial.card_number',
   label: 'Payment Card Number',
+  description: 'Payment card numbers that pass a checksum and match a real card issuer',
   token: 'CARD_NUMBER',
   // 13-19 digits, optionally grouped with single spaces or hyphens.
   pattern: /\b\d(?:[ -]?\d){11,18}\b/g,

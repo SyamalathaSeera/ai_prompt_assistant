@@ -16,6 +16,7 @@ import type { Rule, Tier } from '../types';
 export function defineRule(spec: {
   id: string;
   label: string;
+  description?: string;
   pattern: RegExp;
   token: string;
   tier?: Tier;
@@ -29,6 +30,7 @@ export function defineRule(spec: {
   return {
     id: spec.id,
     label: spec.label,
+    description: spec.description,
     tier: spec.tier ?? 'high',
     pattern: spec.pattern,
     captureGroup: spec.captureGroup,
