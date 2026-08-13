@@ -66,6 +66,14 @@ const SEND_BUTTON_STRATEGIES = [
  */
 const TURN_SELECTOR = '[data-testid^="conversation-turn-"]';
 
+/**
+ * Elements that represent a line of their own in the composer.
+ *
+ * ProseMirror uses `<p>` for ordinary lines; the rest cover code blocks,
+ * quotes, and list items, which a pasted config or snippet can produce.
+ */
+const BLOCK_TAGS = new Set(['p', 'div', 'pre', 'blockquote', 'li', 'h1', 'h2', 'h3']);
+
 /** Who produced a turn, with a fallback for when the outer attribute changes. */
 function roleOf(turn: HTMLElement): 'user' | 'assistant' {
   const outer = turn.getAttribute('data-turn');
@@ -105,11 +113,33 @@ export const chatgptAdapter: SiteAdapter = {
     return findComposer().element;
   },
 
+  /**
+   * Reads the composer's text, preserving line breaks.
+   *
+   * ProseMirror renders each line as its own block element, and `textContent`
+   * concatenates block elements with NO separator — so a pasted `.env` file
+   * comes back as `...EXAMPLEDATABASE_URL=...`, with every line boundary
+   * erased.
+   *
+   * That is not cosmetic. Most rules are anchored with `\b`, so a secret at
+   * the end of a line gets glued to the start of the next one and stops
+   * matching. Pasting a multi-line config is the single most common way this
+   * product is used, and reading it with textContent silently misses the
+   * secrets in it. Found by driving the real page on 2026-08-13; every test
+   * passed because the jsdom fixture used flat text rather than ProseMirror's
+   * block structure.
+   */
   getText(el: HTMLElement): string {
-    // ProseMirror renders an empty document as a single <p><br></p>, which
-    // reads as an empty string via textContent — which is what we want.
     if (el instanceof HTMLTextAreaElement) return el.value;
-    return el.textContent ?? '';
+
+    const blocks = [...el.children].filter((child) =>
+      BLOCK_TAGS.has(child.tagName.toLowerCase()),
+    );
+
+    // No block children: a plain contenteditable, where textContent is right.
+    if (blocks.length === 0) return el.textContent ?? '';
+
+    return blocks.map((block) => block.textContent ?? '').join('\n');
   },
 
   /**

@@ -26,6 +26,33 @@ first false positive becomes an uninstall.
 
 ---
 
+## Dogfooding pass (2026-08-13)
+
+The extension was loaded and driven against the real ChatGPT page for the first time
+since milestone 0.0.1.0. Two findings, one reassuring and one serious.
+
+**`setText` works — the path no test could reach.** It uses
+`document.execCommand('insertText')`, which jsdom does not implement, so all 620 tests
+exercised only the fallback branch. On the live page it writes correctly *and*
+ProseMirror's internal document stays in sync with the DOM, which is what guarantees
+ChatGPT sends the redacted text rather than the original. The failure mode flagged as a
+risk since 0.0.3.0 does not exist.
+
+**`getText` was silently losing every line break — see `bugs/Bug_0001`.** `textContent`
+concatenates ProseMirror's per-line blocks with no separator, so a pasted `.env` came
+back with its lines glued together and any `\b`-anchored secret at a line boundary
+stopped matching. The badge read "1 to redact" where it should have read 2; the AWS key
+was missed entirely. Fixed, regression-tested, and re-verified live.
+
+**Why the suite missed it:** the jsdom fixture built the composer as a flat `<div>`,
+which is not what ChatGPT renders. Every assertion was correct about the fixture, and the
+fixture was wrong about the world. Rebuilt to one `<p>` per line.
+
+Worth stating plainly: a bug in the product's single most common use case survived five
+milestones and 620 passing tests, and took about ten minutes of real use to find.
+
+---
+
 ## Architectural Guardrails
 
 - [x] No `fetch()` added — repo-wide ESLint rule still passing

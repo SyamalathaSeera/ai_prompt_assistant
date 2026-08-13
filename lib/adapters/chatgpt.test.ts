@@ -83,15 +83,63 @@ describe('getComposer', () => {
 });
 
 describe('getText / setText', () => {
+  /**
+   * Fills the composer the way ProseMirror does: one block element per line.
+   *
+   * The original fixture assigned flat text to the container, which is not
+   * what the real editor produces — and that gap hid a bug where multi-line
+   * prompts were read with their line boundaries erased.
+   */
+  function fillLines(composer: HTMLElement, lines: string[]): void {
+    composer.innerHTML = '';
+    for (const line of lines) {
+      const p = document.createElement('p');
+      p.textContent = line;
+      composer.appendChild(p);
+    }
+  }
+
   it('reads the composer text', () => {
     const { composer } = mountChatGpt();
-    composer.textContent = 'hello there';
+    fillLines(composer, ['hello there']);
     expect(chatgptAdapter.getText(composer)).toBe('hello there');
   });
 
   it('reads empty for a fresh composer', () => {
     const { composer } = mountChatGpt();
     expect(chatgptAdapter.getText(composer)).toBe('');
+  });
+
+  it('preserves line breaks across ProseMirror blocks', () => {
+    // textContent concatenates block elements with no separator, which glues
+    // one line to the next. Rules anchored with \b then stop matching, so a
+    // secret at a line boundary is silently missed — in a pasted .env file,
+    // which is the most common way this product is used.
+    const { composer } = mountChatGpt();
+    fillLines(composer, [
+      'AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE',
+      'DATABASE_URL=postgres://app:hunter2pass@db.internal:5432/orders',
+    ]);
+
+    const text = chatgptAdapter.getText(composer);
+
+    expect(text).toBe(
+      'AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n' +
+        'DATABASE_URL=postgres://app:hunter2pass@db.internal:5432/orders',
+    );
+    expect(/\bAKIA[0-9A-Z]{16}\b/.test(text)).toBe(true);
+  });
+
+  it('keeps blank lines, which ProseMirror renders as empty paragraphs', () => {
+    const { composer } = mountChatGpt();
+    fillLines(composer, ['first', '', 'third']);
+    expect(chatgptAdapter.getText(composer)).toBe('first\n\nthird');
+  });
+
+  it('handles a plain contenteditable with no block children', () => {
+    const { composer } = mountChatGpt();
+    composer.textContent = 'flat text';
+    expect(chatgptAdapter.getText(composer)).toBe('flat text');
   });
 
   it('writes text and fires an input event so the editor re-syncs', () => {
