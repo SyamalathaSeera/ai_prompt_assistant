@@ -62,7 +62,7 @@ that should ever need to change in response.
 
 ### Extension (ai_prompt_assistant)
 - **Framework**: WXT (Manifest V3, builds Chrome + Firefox from one source)
-- **UI**: React 19 + TypeScript (strict mode)
+- **UI**: Preact 10 + TypeScript (strict mode) — see ADR-006
 - **Styling**: Tailwind CSS, injected UI mounted in a Shadow DOM
 - **Detection**: Pure TypeScript, zero dependencies, zero I/O
 - **Storage**: `chrome.storage.local` and `chrome.storage.session`
@@ -231,6 +231,34 @@ the valuable code is framework-agnostic and portable if WXT is ever abandoned.
 Detection quality is the product. Keeping `lib/detector/` free of DOM and I/O makes
 precision and recall measurable on every commit against a labeled corpus, and lets the
 same engine be reused later in a CLI, a CI check, or an enterprise proxy.
+
+### ADR-006: Preact instead of React
+**Date**: 2026-08-13 · **Status**: Accepted · **Supersedes the UI half of ADR-003**
+
+Mounting the first component revealed that bundling React put the content script at
+**202.9 kB**, loaded on every ChatGPT page, against the PRD requirement not to degrade
+host page performance. Switching to Preact:
+
+| | React | Preact |
+|---|---|---|
+| content script | 202.90 kB | **24.13 kB** |
+| popup chunk | 191.71 kB | **11.77 kB** |
+| total build | 426.32 kB | **62.95 kB** |
+
+An 85% reduction for a UI consisting of one modal and one badge — React's weight bought
+nothing this project uses.
+
+Native Preact via `@preact/preset-vite`, **not** `preact/compat`. The compat shim would
+mean an alias layer to maintain and a permanent mismatch between `@types/react` and the
+actual runtime, in exchange for compatibility with React-specific libraries we do not
+have. `@wxt-dev/module-react` was removed; there is no equivalent Preact module, so the
+Vite plugin is configured directly.
+
+Timing was deliberate: made while exactly one component existed. All 345 tests passed
+unchanged, which is itself evidence the component model is equivalent for our purposes.
+
+**Consequence**: React-only libraries are unavailable. Acceptable — the UI is small,
+deliberately plain, and has no dependency on the React ecosystem.
 
 ### ADR-005: Session-scoped vault, never synced
 **Date**: 2026-08-12 · **Status**: Accepted

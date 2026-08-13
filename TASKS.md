@@ -1,7 +1,7 @@
 # TASKS.md: AI Prompt Assistant Milestone Tracker
 
 **Last Updated**: 2026-08-13
-**Current Version**: 0.0.3.5
+**Current Version**: 0.0.4.5
 
 ---
 
@@ -12,6 +12,7 @@
 | [0.0.1.0](./tasks/Milestone0.0.1.0.md) | Complete | 2026-08-12 | 6/6 | Project setup and scaffolding |
 | [0.0.2.0](./tasks/Milestone0.0.2.0.md) | Complete | 2026-08-12 | 7/7 | Detector engine + labeled test corpus |
 | [0.0.3.0](./tasks/Milestone0.0.3.0.md) | Complete | 2026-08-13 | 6/6 | Site adapter layer + submit/paste interception |
+| [0.0.4.0](./tasks/Milestone0.0.4.0.md) | Complete | 2026-08-13 | 6/6 | Approval modal + risk badge (Shadow DOM UI) |
 
 ---
 
@@ -19,7 +20,7 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.0.4.0](./tasks/Milestone0.0.4.0.md) | Ready | HIGH | Approval modal + risk badge (Shadow DOM UI) |
+| [0.0.5.0](./tasks/Milestone0.0.5.0.md) | Ready | HIGH | Vault + response re-hydration |
 
 ---
 
@@ -27,7 +28,6 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.0.5.0](./tasks/Milestone0.0.5.0.md) | Planning | HIGH | Vault + response re-hydration |
 | [0.0.6.0](./tasks/Milestone0.0.6.0.md) | Planning | MEDIUM | Settings, allowlist, popup + options page |
 | [0.1.0.0](./tasks/Milestone0.1.0.0.md) | Planning | MEDIUM | Multi-platform adapters (Claude, Gemini) |
 | [0.2.0.0](./tasks/Milestone0.2.0.0.md) | Planning | HIGH | Hardening, resilience, performance, e2e, a11y |

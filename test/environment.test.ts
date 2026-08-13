@@ -21,6 +21,9 @@ describe('lib test environment', () => {
   });
 
   it('has no extension APIs', () => {
+    // This is also why WxtVitest is not applied to the `lib` project: that
+    // plugin installs a fake `browser` global, which would make this assertion
+    // pass vacuously and quietly retire the guarantee it exists to protect.
     expect(typeof (globalThis as Record<string, unknown>).chrome).toBe('undefined');
     expect(typeof (globalThis as Record<string, unknown>).browser).toBe('undefined');
   });

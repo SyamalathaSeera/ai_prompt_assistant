@@ -1,0 +1,75 @@
+@import 'tailwindcss';
+
+/*
+ * Dark mode is driven by an explicit attribute rather than by
+ * `prefers-color-scheme`.
+ *
+ * Our UI sits inside a shadow root on someone else's page, and the host may be
+ * in dark mode while the OS is in light mode (or the reverse). Matching the OS
+ * would leave a bright panel floating over a dark chat. `components/theme.ts`
+ * reads the host page's own theme and stamps this attribute on our container.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * The container inside the shadow root.
+ *
+ * Styles here cannot escape into the host page and the host's cannot reach in,
+ * but the SHADOW HOST element itself is a normal page element — so its
+ * position and stacking are set from the content script, not from here.
+ */
+:host {
+  all: initial;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+}
+
+/*
+ * Design tokens, defined per theme.
+ *
+ * Deliberately a small hand-picked set rather than Tailwind's full palette:
+ * this UI interrupts someone mid-task, so it should read as a quiet system
+ * notice rather than as a second application competing for attention.
+ */
+[data-theme] {
+  --apa-bg: #ffffff;
+  --apa-fg: #1a1a1a;
+  --apa-muted: #6b7280;
+  --apa-border: #e5e7eb;
+  --apa-surface: #f9fafb;
+  /* red-700, not red-600: the lighter shade measures 4.41:1 against
+     --apa-danger-bg, just under the 4.5 AA threshold for body text. */
+  --apa-danger: #b91c1c;
+  --apa-danger-bg: #fef2f2;
+  --apa-warn: #b45309;
+  --apa-warn-bg: #fffbeb;
+  --apa-accent: #2563eb;
+  --apa-accent-fg: #ffffff;
+  --apa-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+[data-theme='dark'] {
+  --apa-bg: #1f1f1f;
+  --apa-fg: #ececec;
+  --apa-muted: #9ca3af;
+  --apa-border: #3a3a3a;
+  --apa-surface: #2a2a2a;
+  --apa-danger: #f87171;
+  --apa-danger-bg: #2a1616;
+  --apa-warn: #fbbf24;
+  --apa-warn-bg: #2a2216;
+  --apa-accent: #3b82f6;
+  --apa-accent-fg: #ffffff;
+  --apa-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+}
+
+/* Respect a user who has asked the OS to reduce motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

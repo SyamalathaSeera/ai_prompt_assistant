@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'wxt';
+import preact from '@preact/preset-vite';
 import tailwindcss from '@tailwindcss/vite';
 
 const pkg = JSON.parse(
@@ -7,8 +8,19 @@ const pkg = JSON.parse(
 ) as { version: string };
 
 // See https://wxt.dev/api/config.html
+/**
+ * Preact rather than React, decided at milestone 0.0.4.0.
+ *
+ * The content script runs on every ChatGPT page load, and bundling React put
+ * it at 202.9 kB against a PRD requirement not to degrade host page
+ * performance. Preact provides the same component model at a fraction of the
+ * size. Switched while exactly one component existed, which is the cheapest
+ * this change was ever going to be.
+ *
+ * Native Preact, not `preact/compat`: no alias layer to maintain and no
+ * mismatch between `@types/react` and the actual runtime.
+ */
 export default defineConfig({
-  modules: ['@wxt-dev/module-react'],
 
   // WXT would otherwise launch a fresh Chrome profile via web-ext. A blank
   // profile is not signed in to ChatGPT, which makes verifying against the
@@ -42,7 +54,7 @@ export default defineConfig({
   },
 
   vite: () => ({
-    plugins: [tailwindcss()],
+    plugins: [preact(), tailwindcss()],
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
     },
