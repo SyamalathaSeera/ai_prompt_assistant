@@ -16,11 +16,14 @@ import { resolveAdapter } from '../lib/adapters/registry';
 describe('content script / adapter match patterns', () => {
   it('entrypoint matches are identical to the adapter host patterns', () => {
     const src = readFileSync(
-      resolvePath(__dirname, '../entrypoints/content.ts'),
+      resolvePath(__dirname, '../entrypoints/content/index.ts'),
       'utf8',
     );
     const block = src.match(/matches:\s*\[([\s\S]*?)\]/)?.[1];
-    expect(block, 'could not find a matches array in entrypoints/content.ts').toBeTruthy();
+    expect(
+      block,
+      'could not find a matches array in entrypoints/content/index.ts',
+    ).toBeTruthy();
 
     const declared = [...(block ?? '').matchAll(/'([^']+)'/g)]
       .map((m) => m[1])

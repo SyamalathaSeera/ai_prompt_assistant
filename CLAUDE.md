@@ -26,9 +26,9 @@ No backend, no server, no telemetry.
 
 ## Current Status
 
-**Phase**: Milestone 0.0.4.0, Approval Modal + Risk Badge
+**Phase**: Milestone 0.0.5.0, Vault + Response Re-hydration
 **Last Updated**: 2026-08-13
-**Version**: 0.0.3.5
+**Version**: 0.0.4.5
 
 ### Completed Milestones
 - **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind
@@ -48,8 +48,14 @@ No backend, no server, no telemetry.
   paste warns without blocking, live scan drives the risk level. Fail-open proven by
   fault injection at every stage.
 
+- **0.0.4.0** (2026-08-13): Approval modal + risk badge. 460 tests. **The product loop is
+  complete and dogfoodable** — typing a secret into ChatGPT holds the submission, shows
+  what was found, and sends what the user approves. Switched React → Preact (ADR-006):
+  build fell from 426 kB to ~104 kB. Contrast is asserted against the shipped stylesheet
+  and caught a real AA failure on first run.
+
 ### Active Milestone
-- **Milestone 0.0.4.0**: Approval modal + risk badge (Shadow DOM UI)
+- **Milestone 0.0.5.0**: Vault + response re-hydration
 
 ### Planned Next
 - **0.0.2.0**: Detector engine + labeled test corpus
@@ -64,7 +70,7 @@ No backend, no server, no telemetry.
 | Layer | Technology |
 |---|---|
 | Extension framework | WXT (MV3, Chrome + Firefox targets) |
-| UI | React 19 + TypeScript |
+| UI | Preact 10 + TypeScript (ADR-006) |
 | Styling | Tailwind CSS (injected UI scoped via Shadow DOM) |
 | Detection | Pure TypeScript, no DOM, no network |
 | Storage | `chrome.storage.local` (settings) + `chrome.storage.session` (vault) |

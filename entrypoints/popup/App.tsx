@@ -1,30 +1,18 @@
-import { useState } from 'react';
-import reactLogo from '@/assets/react.svg';
-import wxtLogo from '/wxt.svg';
-import './App.css';
-
+/**
+ * Toolbar popup.
+ *
+ * Placeholder until milestone 0.0.6.0, which builds the real surface: catch
+ * counts, per-site pause, vault size, and the local-only privacy statement.
+ */
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
-    <>
-      <div>
-        <a href="https://wxt.dev" target="_blank">
-          <img src={wxtLogo} className="logo" alt="WXT logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1 className="text-2xl font-semibold tracking-tight">WXT + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>count is {count}</button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">Click on the WXT and React logos to learn more</p>
-    </>
+    <main className="p-4 text-left">
+      <h1 className="text-lg font-semibold tracking-tight">AI Prompt Assistant</h1>
+      <p className="mt-2 text-sm opacity-70">
+        Protection is active on ChatGPT. Nothing you type leaves this device.
+      </p>
+      <p className="mt-4 text-xs opacity-50">v{__APP_VERSION__}</p>
+    </main>
   );
 }
 
