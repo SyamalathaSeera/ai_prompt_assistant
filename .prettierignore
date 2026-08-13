@@ -1,0 +1,14 @@
+node_modules/
+.output/
+.wxt/
+coverage/
+*.zip
+
+# Management docs are hand-maintained prose with deliberate table alignment.
+# Prettier reflows them and breaks the milestone tables — keep it off them.
+CLAUDE.md
+ARCHITECTURE.md
+PRD.md
+TASKS.md
+tasks/
+bugs/
