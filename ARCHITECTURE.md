@@ -232,6 +232,43 @@ Detection quality is the product. Keeping `lib/detector/` free of DOM and I/O ma
 precision and recall measurable on every commit against a labeled corpus, and lets the
 same engine be reused later in a CLI, a CI check, or an enterprise proxy.
 
+### ADR-007: Model work runs on-device, so ADR-001 stands
+**Date**: 2026-08-13 · **Status**: Accepted (provisional — confirm in milestone 0.2.0.5)
+
+Scope was extended to include prompt refinement and clarify-with-context before launch.
+Both need a language model, which appeared to collide head-on with ADR-001.
+
+Probing the live browser resolved it. Chrome's built-in Prompt API is present:
+
+```
+window.LanguageModel   function
+availability           "downloadable"
+```
+
+Model inference therefore happens **on the device**. No backend, no BYOK, no API keys,
+no per-user cost, no data-handling disclosure — and "nothing you type leaves this
+device" remains literally true rather than needing careful qualification. That sentence
+appears in the store listing, the options page, and onboarding; a cloud call would have
+falsified all three.
+
+**Alternatives rejected.** BYOK would mean the user pasting an API key into a privacy
+tool, and prompts reaching a provider (defensible, since the prompt was going there
+anyway, but it complicates the claim). A backend would delete ADR-001 outright.
+
+**Consequences.**
+- Model features are unavailable on Firefox, on older Chrome, and on hardware that
+  cannot run the model. They must degrade to absent, never to broken — enforced in
+  milestone 0.2.0.4.
+- First use requires a large model download. It must be user-initiated with the size
+  stated, never automatic.
+- Quality is below a frontier model. The bar is that refusing to suggest beats
+  suggesting badly.
+- **Refinement must run on redacted text.** Even locally, this ordering is what stops a
+  future remote model from ever seeing a secret.
+
+Marked provisional because availability was measured on one machine; 0.2.0.5 re-verifies
+zero network requests with the model active and confirms the claim across states.
+
 ### ADR-006: Preact instead of React
 **Date**: 2026-08-13 · **Status**: Accepted · **Supersedes the UI half of ADR-003**
 
