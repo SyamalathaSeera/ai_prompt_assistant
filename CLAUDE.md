@@ -26,9 +26,9 @@ No backend, no server, no telemetry.
 
 ## Current Status
 
-**Phase**: Milestone 0.2.0.0, On-Device Model Foundation
+**Phase**: Milestone 0.3.0.0, Prompt Refinement
 **Last Updated**: 2026-08-13
-**Version**: 0.1.0.4
+**Version**: 0.2.0.5
 
 ### Completed Milestones
 - **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind
@@ -71,8 +71,14 @@ No backend, no server, no telemetry.
   declines message reading rather than guessing at unverified DOM. The install-time
   permission ask is now asserted in CI against the built manifest.
 
+- **0.2.0.0** (2026-08-13): On-device model foundation. 774 tests. Chrome's Prompt API
+  wrapped behind `lib/model/`, with every failure returned as a value rather than
+  thrown. **ADR-007 confirmed**: the built bundle was audited and contains no network
+  transport at all, so "nothing leaves this device" is literally true and now enforced
+  by `test/no-network.test.ts`. Removing model support entirely would break nothing.
+
 ### Active Milestone
-- **Milestone 0.2.0.0**: On-device model foundation (Chrome Prompt API)
+- **Milestone 0.3.0.0**: Prompt refinement
 
 ### Planned Next
 - **0.1.0.0**: Claude + Gemini adapters

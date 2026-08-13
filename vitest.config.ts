@@ -54,6 +54,9 @@ export default defineConfig({
             'lib/vault/**/*.test.ts',
             'lib/rehydrate/**/*.test.ts',
             'lib/storage/**/*.test.ts',
+            // The model layer probes browser globals, so it belongs with the
+            // browser-dependent code rather than the pure `lib` project.
+            'lib/model/**/*.test.ts',
             'components/**/*.test.{ts,tsx}',
             'entrypoints/**/*.test.{ts,tsx}',
           ],

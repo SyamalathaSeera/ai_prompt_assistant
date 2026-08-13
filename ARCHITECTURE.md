@@ -233,7 +233,28 @@ precision and recall measurable on every commit against a labeled corpus, and le
 same engine be reused later in a CLI, a CI check, or an enterprise proxy.
 
 ### ADR-007: Model work runs on-device, so ADR-001 stands
-**Date**: 2026-08-13 · **Status**: Accepted (provisional — confirm in milestone 0.2.0.5)
+**Date**: 2026-08-13 · **Status**: **Accepted and confirmed** (milestone 0.2.0.5)
+
+> **Confirmation, 2026-08-13.** The provisional status is lifted. The API surface was
+> probed on the live browser rather than assumed — `LanguageModel.availability()` and
+> `.create()` as statics, `prompt`/`destroy`/`contextWindow`/`measureContextUsage` on the
+> instance — and the built bundle was audited for network primitives.
+>
+> **Audit result:** the shipped content script contains exactly two `fetch` calls, both
+> inside WXT's shadow-root helper, both reading
+> `chrome.runtime.getURL('/content-scripts/content.css')`. That is a
+> `chrome-extension://` URL pointing at a file inside the extension package — a local
+> file read, not a network request. No `XMLHttpRequest`, no `WebSocket`, no
+> `sendBeacon`, no `EventSource`, and no analytics or telemetry references in either
+> bundle.
+>
+> This is now enforced rather than remembered: `test/no-network.test.ts` scans the built
+> artefact on every run, and fails on any external URL literal, any other network
+> transport, or a `fetch` that is not paired with `runtime.getURL`. It checks the shipped
+> bundle, which includes dependency code, rather than only our own source as the ESLint
+> rule does.
+>
+> **Claim verified as literally true:** "nothing you type leaves this device."
 
 Scope was extended to include prompt refinement and clarify-with-context before launch.
 Both need a language model, which appeared to collide head-on with ADR-001.

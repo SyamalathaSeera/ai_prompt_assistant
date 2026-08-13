@@ -1,7 +1,7 @@
 ﻿# TASKS.md: AI Prompt Assistant Milestone Tracker
 
 **Last Updated**: 2026-08-13
-**Current Version**: 0.1.0.4
+**Current Version**: 0.2.0.5
 
 ---
 
@@ -16,6 +16,7 @@
 | [0.0.5.0](./tasks/Milestone0.0.5.0.md) | Complete | 2026-08-13 | 5/5 | Vault + response re-hydration |
 | [0.0.6.0](./tasks/Milestone0.0.6.0.md) | Complete | 2026-08-13 | 5/5 | Settings, allowlist, popup + options page |
 | [0.1.0.0](./tasks/Milestone0.1.0.0.md) | Complete | 2026-08-13 | 5/5 | Multi-platform adapters (Claude, Gemini) |
+| [0.2.0.0](./tasks/Milestone0.2.0.0.md) | Complete | 2026-08-13 | 6/6 | On-device model foundation |
 
 ---
 
@@ -23,7 +24,7 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.2.0.0](./tasks/Milestone0.2.0.0.md) | Ready | HIGH | On-device model foundation |
+| [0.3.0.0](./tasks/Milestone0.3.0.0.md) | Ready | HIGH | Prompt refinement |
 
 ---
 
@@ -31,7 +32,6 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.3.0.0](./tasks/Milestone0.3.0.0.md) | Planning | HIGH | Prompt refinement |
 | [0.4.0.0](./tasks/Milestone0.4.0.0.md) | Planning | MEDIUM | Clarify with context |
 | [0.5.0.0](./tasks/Milestone0.5.0.0.md) | Planning | HIGH | Hardening, resilience, performance, e2e, a11y |
 | [0.6.0.0](./tasks/Milestone0.6.0.0.md) | Planning | HIGH | Onboarding and first-run experience |
@@ -72,4 +72,5 @@ project convention; 1.0.0.0 is the first public release.
 ---
 
 _Milestone details, task lists, and session notes live in `./tasks/`. This file is the dashboard. Keep it lean._
+
 
