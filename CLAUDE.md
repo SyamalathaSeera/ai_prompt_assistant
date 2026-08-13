@@ -69,10 +69,13 @@ No backend, no server, no telemetry.
 - **Milestone 0.1.0.0**: Multi-platform adapters (Claude, Gemini)
 
 ### Planned Next
-- **0.0.2.0**: Detector engine + labeled test corpus
-- **0.0.3.0**: Site adapter + submit interception + approval modal
-- **0.0.4.0**: Re-hydration, allowlist, options page
-- **0.0.5.0**: Store readiness (onboarding, privacy policy, listing assets)
+- **0.1.0.0**: Claude + Gemini adapters
+- **0.2.0.0**: On-device model foundation (Chrome Prompt API)
+- **0.3.0.0**: Prompt refinement
+- **0.4.0.0**: Clarify with context
+- **0.5.0.0**: Hardening, e2e, performance
+- **0.6.0.0**: Onboarding
+- **0.9.0.0** → **1.0.0.0**: Beta, then public launch
 
 ---
 
@@ -96,8 +99,9 @@ No backend, no server, no telemetry.
 These are architectural commitments, not preferences. Breaking any of them changes
 what the product is.
 
-1. **No network requests in v1.** The install-time pitch is "nothing leaves your
-   machine." One `fetch()` in the content script invalidates the entire positioning.
+1. **No network requests.** The install-time pitch is "nothing leaves your machine."
+   One `fetch()` in the content script invalidates the entire positioning. Model work
+   runs on-device via Chrome's Prompt API precisely so this survives — see ADR-007.
 2. **The detector is pure.** `lib/detector/` takes a string and returns findings. No
    DOM access, no storage access, no I/O. This is what makes it testable.
 3. **Never log or persist a detected secret value.** Log the rule id and character

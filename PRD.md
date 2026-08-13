@@ -55,11 +55,25 @@ The smallest version that delivers real value.
 - [ ] Zero network requests — verifiable by the user in DevTools
 - [ ] Onboarding that produces a live catch within 30 seconds of install
 
-**Out of scope for MVP (future):**
-- Prompt refinement (needs a model — BYOK or on-device, later)
-- Clarify-with-context (low value; the model already sees the conversation)
+**Also shipping before launch** _(scope decision, 2026-08-13)_:
+- [ ] Prompt refinement — rewrite a rough prompt into a clearer one, on device
+- [ ] Clarify-with-context — resolve vague references against the current chat and ask
+      the user to confirm the interpretation before sending
+
+Both run on Chrome's built-in on-device model, so ADR-001 holds and the local-only claim
+stays literally true. Both are strictly additive: a machine that cannot run the model
+loses these two features and nothing else.
+
+> **Correcting an earlier judgement.** Clarify-with-context was originally cut as "low
+> value; the model already sees the conversation". That was right about information and
+> wrong about purpose. The model does have the history — but it resolves ambiguity
+> *silently, and sometimes wrongly*, and the user only discovers it after a wasted
+> round-trip. The value is showing the **user** an interpretation before it is acted on,
+> not supplying the model with context it lacks.
+
+**Out of scope (future):**
 - Team policy, shared allowlists, audit log, SSO
-- Chat-to-project conversion (separate product — see conversation history)
+- Chat-to-project conversion (separate product — needs broad permissions and a backend)
 - Chat history organization (separate product)
 
 ---

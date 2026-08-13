@@ -1,15 +1,15 @@
-# Milestone 0.2.0.0 - Hardening, Resilience, Performance
+# Milestone 0.2.0.0 - On-Device Model Foundation
 
 **Version:** 0.2.0.0
-**Date Created:** 2026-08-12
+**Date Created:** 2026-08-13
 **Date Started:** 
 **Date Completed:** 
 **Status:** Planning
-**Based on:** PRD non-functional requirements
+**Based on:** Scope decision 2026-08-13 — finish Extension 1 before launch
 
-Turn a working extension into a production one. The failure mode this milestone exists to
-prevent: ChatGPT ships a DOM change, the extension silently stops protecting people, and
-nobody finds out for three weeks.
+Build the layer that lets the extension use a language model **without breaking
+ADR-001**. Nothing here is user-visible; it exists so refinement (0.3.0.0) and
+clarification (0.4.0.0) can be built on something that degrades honestly.
 
 ---
 
@@ -28,20 +28,34 @@ nobody finds out for three weeks.
 | Task                                    | Priority | Status  | Version | Verified |
 | --------------------------------------- | -------- | ------- | ------- | -------- |
 | Task 0: Milestone Initialization        | SETUP    | Pending | 0.2.0.0 | -        |
-| Task 1: Adapter self-healing + health   | CRITICAL | Pending | 0.2.0.1 | -        |
-| Task 2: Remote selector config (data)   | HIGH     | Pending | 0.2.0.2 | -        |
-| Task 3: Error boundaries + fail-open    | CRITICAL | Pending | 0.2.0.3 | -        |
-| Task 4: Performance budget              | HIGH     | Pending | 0.2.0.4 | -        |
-| Task 5: E2E suite (Playwright)          | HIGH     | Pending | 0.2.0.5 | -        |
+| Task 1: Capability detection            | CRITICAL | Pending | 0.2.0.1 | -        |
+| Task 2: Session lifecycle + model download| HIGH    | Pending | 0.2.0.2 | -        |
+| Task 3: Prompt execution + guardrails    | CRITICAL | Pending | 0.2.0.3 | -        |
+| Task 4: Graceful degradation everywhere  | CRITICAL | Pending | 0.2.0.4 | -        |
+| Task 5: ADR + privacy claim review       | HIGH     | Pending | 0.2.0.5 | -        |
 
 ---
 
 ## Overview
 
-**Objective:** The extension degrades visibly and safely, recovers from host changes
-without a store update where possible, and never costs the user performance.
+**Objective:** `lib/model/` exposes "is a model available, and can it answer this
+prompt", with every consumer able to carry on without it.
 
-**Estimated Effort:** 6–8 hours
+**Why on-device.** Verified on the developer's machine 2026-08-13:
+
+```
+window.LanguageModel   function
+availability           "downloadable"
+window.Summarizer      function
+window.Translator      function
+```
+
+Chrome's built-in Prompt API means model work happens locally: no backend, no API keys,
+no per-user cost, and **"nothing you type leaves this device" stays literally true**.
+That claim is the product's entire install-time pitch and the thing the options page
+invites users to verify in DevTools — a cloud call would have cost it.
+
+**Estimated Effort:** 5–7 hours
 
 **Dependencies:** 0.1.0.0
 
@@ -49,149 +63,140 @@ without a store update where possible, and never costs the user performance.
 
 ## Task 0: Milestone Initialization (SETUP)
 
-Standard: version check, branch `syamalatha-MMDDYY-0.2.0.0-ext`, Date Started.
+Standard: version check, branch, Date Started.
 
 ---
 
-## Task 1: Adapter Self-Healing and Health Reporting (CRITICAL)
+## Task 1: Capability Detection (CRITICAL)
 
 **Version:** 0.2.0.1
 
 ### Description
 
-Silent failure is the worst outcome for a security tool — the user believes they are
-protected when they are not.
+Answer "can we use a model right now" honestly and cheaply.
 
 ### Implementation Steps
 
-1. Health check on injection: can the composer be resolved? Do submit listeners attach?
-2. On failure, retry with backoff across the fallback chain before giving up.
-3. On persistent failure, **tell the user** — badge state plus popup message: "Protection
-   unavailable on this page." Never fail silently.
-4. Heuristic composer discovery as a last resort: find the focused `contenteditable` or
-   `textarea` nearest a submit control.
-5. Record health status locally for the user to see. No transmission.
+1. Probe `window.LanguageModel` and legacy `window.ai.languageModel`, since the API has
+   shipped under more than one name and users are on different Chrome versions.
+2. Map `availability()` to our own states: `unavailable`, `downloadable`,
+   `downloading`, `available`.
+3. Cache the result but re-check on demand — a model can finish downloading mid-session.
+4. Never throw. An absent API is the normal case on Firefox and on older Chrome.
 
 ### Testing
 
-- [ ] Forcing all primary selectors to fail triggers the heuristic path
-- [ ] Total failure surfaces a visible "protection unavailable" state
-- [ ] Recovery works when the composer appears late
-
-### Success Criteria
-
-- A user can always tell whether they are currently protected
+- [ ] Missing API reports `unavailable` without throwing
+- [ ] Each availability state maps correctly
+- [ ] A throwing probe is treated as `unavailable`
 
 ---
 
-## Task 2: Remote Selector Config, Data Only (HIGH)
+## Task 2: Session Lifecycle and Model Download (HIGH)
 
 **Version:** 0.2.0.2
 
 ### Description
 
-Selector breakage should not require a store review cycle. MV3 forbids remotely loaded
-**code**; fetched **data** is permitted.
-
-> ⚠️ This is the one place the "no network requests" rule is relaxed. It must be an
-> explicit, documented, user-visible exception — opt-out in settings, config data only,
-> never prompt content, never on the prompt path. Re-read the current Chrome Web Store
-> policy before implementing, and record the decision as an ADR.
+Sessions are expensive to create and hold memory; the first download is large.
 
 ### Implementation Steps
 
-1. Fetch a signed JSON selector map from a static host, on a slow schedule, from the
-   background worker only — never the content script, never during a scan.
-2. Validate against a strict schema; reject anything unexpected. Selectors are strings
-   used with `querySelector`, never evaluated as code.
-3. Bundled selectors remain the fallback; remote config only overrides.
-4. Setting to disable remote config entirely, and a clear statement in the privacy
-   section describing exactly what this request contains (nothing user-specific).
-5. Add ADR-006 recording this exception and its justification.
+1. Lazily create a session on first use, reuse it, and destroy it when idle.
+2. Surface download progress. A silent multi-hundred-megabyte download is a
+   user-hostile surprise on a metered connection — ask before starting it, and say how
+   large it is.
+3. Cap concurrent sessions at one.
+4. Destroy the session on content-script teardown.
 
 ### Testing
 
-- [ ] Malformed or unsigned config is rejected, bundled selectors used
-- [ ] Disabling the setting stops all network activity
-- [ ] No user data is included in the request
-- [ ] Prompt path still makes zero network requests
+- [ ] Session reused across calls, not recreated
+- [ ] Download is user-initiated, never automatic
+- [ ] Teardown destroys the session
 
 ---
 
-## Task 3: Error Boundaries and Fail-Open Verification (CRITICAL)
+## Task 3: Prompt Execution and Guardrails (CRITICAL)
 
 **Version:** 0.2.0.3
 
+### Description
+
+A typed wrapper around a single model call.
+
 ### Implementation Steps
 
-1. React error boundary around all injected UI — a UI crash must not block submission.
-2. Wrap every host-page interaction; on throw, release the pending submission.
-3. Fault-injection test mode that deliberately throws at each stage of the pipeline.
-4. Local-only error log (message and stack, never prompt content) viewable in options,
-   so bug reports can be filed without the user pasting sensitive material.
+1. `run(prompt, { signal, timeoutMs })` returning a discriminated result rather than
+   throwing — callers must handle failure as a normal outcome.
+2. Hard timeout. An on-device model on a busy machine can take seconds, and the user is
+   mid-task.
+3. Abort on composer change: a suggestion for text the user has already rewritten is
+   worse than no suggestion.
+4. Cap input length; refuse rather than truncate, since a silently truncated prompt
+   produces a confidently wrong rewrite.
 
 ### Testing
 
-- [ ] Injected fault at each pipeline stage still submits the prompt
-- [ ] UI crash does not block the composer
-- [ ] Error log contains no prompt content
-
-### Success Criteria
-
-- Fail-open proven by systematic fault injection, not assumed
+- [ ] Timeout returns a failure result, never hangs
+- [ ] Abort mid-flight leaves no dangling session
+- [ ] Oversized input is refused with a clear reason
 
 ---
 
-## Task 4: Performance Budget (HIGH)
+## Task 4: Graceful Degradation Everywhere (CRITICAL)
 
 **Version:** 0.2.0.4
 
+### Description
+
+**The whole product must work with no model at all.** Redaction is the thing people
+install this for; refinement is an addition. A machine that cannot run the model must
+lose exactly the refinement features and nothing else.
+
 ### Implementation Steps
 
-1. Benchmarks: detection on 1KB / 10KB / 100KB / 1MB inputs.
-2. Enforce the PRD budget (< 50ms at 10KB) as a failing test.
-3. Move large scans off the main thread if the budget cannot be met inline.
-4. Cap and chunk pathological inputs so a huge paste never freezes the tab.
-5. Measure content-script bundle size and injection cost; set a size budget.
+1. Feature flags derived from capability, not from settings alone.
+2. UI affordances for model features hidden — not disabled-and-confusing — when
+   unavailable.
+3. One place in options explaining why, with the hardware/browser requirement stated.
+4. Firefox build must not reference the API at all.
 
 ### Testing
 
-- [ ] Budget test fails when a slow rule is introduced
-- [ ] 1MB paste does not freeze the tab
-- [ ] No measurable typing lag on a long draft
+- [ ] With the API stubbed out, every redaction test still passes
+- [ ] No model-dependent control appears when unavailable
+- [ ] Firefox build contains no Prompt API references
+
+### Success Criteria
+
+- Removing model support entirely would break no existing feature
 
 ---
 
-## Task 5: E2E Suite (HIGH)
+## Task 5: ADR and Privacy Claim Review (HIGH)
 
 **Version:** 0.2.0.5
 
+### Description
+
+The privacy claim is now load-bearing in three places: the store listing, the options
+page, and the onboarding screen. Adding a model is exactly the change that could quietly
+falsify it.
+
 ### Implementation Steps
 
-1. Playwright with the extension loaded, driving a mocked chat page that mirrors each
-   platform's DOM fixtures.
-2. Cover the full journeys: clean submit, caught submit, send redacted, send original,
-   allowlist, re-hydration, adapter failure.
-3. Run against saved DOM fixtures in CI; keep an optional live smoke test that is
-   allowed to fail loudly when a platform changes.
+1. Write **ADR-007: on-device model, no network** recording the decision and the
+   measurement behind it.
+2. Re-verify zero network requests with model features active — the same DevTools check
+   from 0.0.1.0, now with a model in the loop.
+3. Review every user-facing privacy sentence against what the build actually does.
+4. Confirm the store data-disclosure answers are still accurate.
 
 ### Testing
 
-- [ ] All journeys pass headless in CI
-- [ ] Suite catches a deliberately broken adapter
-
-### Architectural Guardrails
-
-- [ ] Detector still pure
-- [ ] Only Task 2's config fetch exists; prompt path remains network-free
-- [ ] No prompt content in any log
-- [ ] Fail-open verified
-
----
-
-## Session Notes
-
-_(Record fault-injection findings and performance numbers here.)_
+- [ ] Zero network requests observed with refinement exercised
+- [ ] Every privacy claim re-read against current behaviour
 
 ---
 
