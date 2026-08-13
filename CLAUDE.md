@@ -26,9 +26,9 @@ No backend, no server, no telemetry.
 
 ## Current Status
 
-**Phase**: Milestone 0.0.5.0, Vault + Response Re-hydration
+**Phase**: Milestone 0.0.6.0, Settings + Allowlist + Options
 **Last Updated**: 2026-08-13
-**Version**: 0.0.4.5
+**Version**: 0.0.5.4
 
 ### Completed Milestones
 - **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind
@@ -54,8 +54,13 @@ No backend, no server, no telemetry.
   build fell from 426 kB to ~104 kB. Contrast is asserted against the shipped stylesheet
   and caught a real AA failure on first run.
 
+- **0.0.5.0** (2026-08-13): Vault + re-hydration. 533 tests. **Redaction is now
+  lossless** — secrets are replaced on the way out and restored on the way back, never
+  leaving the device. Session-only storage with sliding 4h expiry; hydration is
+  display-only and refuses to enter form controls or the composer.
+
 ### Active Milestone
-- **Milestone 0.0.5.0**: Vault + response re-hydration
+- **Milestone 0.0.6.0**: Settings, allowlist, popup + options page
 
 ### Planned Next
 - **0.0.2.0**: Detector engine + labeled test corpus

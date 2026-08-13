@@ -27,6 +27,21 @@ export function formatPlaceholder(
 }
 
 /**
+ * Matches any placeholder this engine emits, in either style.
+ *
+ * Lives beside `formatPlaceholder` on purpose: re-hydration has to recognise
+ * exactly what redaction produced, and a pattern maintained separately from
+ * the formatter would drift the moment either changed — leaving real values
+ * stranded behind placeholders nobody could match.
+ *
+ * A fresh RegExp per call, since callers use it with `matchAll` and shared
+ * global regexes carry `lastIndex` between uses.
+ */
+export function placeholderPattern(): RegExp {
+  return /\[REDACTED_[A-Z0-9_]+_\d+\]|\bdummy_[a-z0-9_]+_\d+\b/g;
+}
+
+/**
  * Detection engine.
  *
  * ADR-004: pure. Takes a string, returns findings. No DOM, no extension APIs,

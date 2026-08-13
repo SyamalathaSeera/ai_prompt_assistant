@@ -424,6 +424,204 @@ describe('onInput', () => {
   });
 });
 
+/**
+ * Conversation fixture mirroring the live DOM inspected on 2026-08-13.
+ *
+ * Reproduces two details that shaped the implementation: turns do NOT share a
+ * direct parent (each sits in its own `data-turn-id-container`), and the role
+ * lives on the turn as `data-turn` with an inner `data-message-author-role`
+ * as backup.
+ */
+function mountConversation(): HTMLElement {
+  document.body.innerHTML = `
+    <main>
+      <div class="thread">
+        <div data-turn-id-container="t1">
+          <div data-testid="conversation-turn-1" data-turn="user" data-turn-id="t1">
+            <div data-message-author-role="user" data-message-id="t1">Hello there</div>
+          </div>
+        </div>
+        <div data-turn-id-container="t2">
+          <div data-testid="conversation-turn-2" data-turn="assistant" data-turn-id="t2">
+            <div data-message-author-role="assistant" data-message-id="t2">
+              <div class="markdown"><p>Hi, how can I help?</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  `;
+  return document.querySelector('main')!;
+}
+
+describe('getMessages', () => {
+  it('reads every turn in order with its role', () => {
+    mountConversation();
+    const messages = chatgptAdapter.getMessages!();
+
+    expect(messages.map((m) => m.role)).toEqual(['user', 'assistant']);
+    expect(messages[0]!.text).toContain('Hello there');
+    expect(messages[1]!.text).toContain('how can I help');
+  });
+
+  it('exposes the host page’s stable message id', () => {
+    mountConversation();
+    expect(chatgptAdapter.getMessages!().map((m) => m.id)).toEqual(['t1', 't2']);
+  });
+
+  it('falls back to the inner author-role marker', () => {
+    mountConversation();
+    const turn = document.querySelector<HTMLElement>('[data-turn="assistant"]')!;
+    turn.removeAttribute('data-turn');
+
+    const messages = chatgptAdapter.getMessages!();
+    expect(messages[1]!.role).toBe('assistant');
+  });
+
+  it('returns empty on a page with no conversation', () => {
+    document.body.innerHTML = '<main></main>';
+    expect(chatgptAdapter.getMessages!()).toEqual([]);
+  });
+});
+
+describe('getConversationId', () => {
+  const setPath = (pathname: string) => {
+    window.history.replaceState({}, '', pathname);
+  };
+
+  it('reads the id from the URL', () => {
+    setPath('/c/6a7a66c5-c798-83ea-9cec-19cfd202dcb5');
+    expect(chatgptAdapter.getConversationId!()).toBe(
+      '6a7a66c5-c798-83ea-9cec-19cfd202dcb5',
+    );
+  });
+
+  it('returns null for a fresh chat that has no id yet', () => {
+    // Inventing one would let two different new chats share vault entries.
+    setPath('/');
+    expect(chatgptAdapter.getConversationId!()).toBeNull();
+  });
+
+  it('returns null for an unrelated path', () => {
+    setPath('/gpts');
+    expect(chatgptAdapter.getConversationId!()).toBeNull();
+  });
+});
+
+describe('observeResponse', () => {
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it('reports an assistant turn when its text changes', async () => {
+    mountConversation();
+    const seen: string[] = [];
+    const dispose = chatgptAdapter.observeResponse!((node) =>
+      seen.push(node.getAttribute('data-turn-id') ?? ''),
+    );
+
+    const markdown = document.querySelector<HTMLElement>('.markdown p')!;
+    markdown.textContent = 'Updated answer';
+    await settle();
+
+    expect(seen).toContain('t2');
+    dispose();
+  });
+
+  it('sees streamed text, which mutates existing nodes rather than adding them', async () => {
+    // Without characterData in the observer config, a placeholder arriving
+    // mid-stream would never be noticed.
+    mountConversation();
+    const seen: string[] = [];
+    const dispose = chatgptAdapter.observeResponse!((node) =>
+      seen.push(node.getAttribute('data-turn-id') ?? ''),
+    );
+
+    const textNode = document.querySelector('.markdown p')!.firstChild!;
+    textNode.textContent = 'streamed token';
+    await settle();
+
+    expect(seen).toContain('t2');
+    dispose();
+  });
+
+  it('reports a newly appended assistant turn', async () => {
+    const main = mountConversation();
+    const seen: string[] = [];
+    const dispose = chatgptAdapter.observeResponse!((node) =>
+      seen.push(node.getAttribute('data-turn-id') ?? ''),
+    );
+
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <div data-testid="conversation-turn-3" data-turn="assistant" data-turn-id="t3">
+        <div class="markdown"><p>New reply</p></div>
+      </div>`;
+    main.querySelector('.thread')!.appendChild(container);
+    await settle();
+
+    expect(seen).toContain('t3');
+    dispose();
+  });
+
+  it('ignores user turns', async () => {
+    // The user's own text is already theirs; rewriting it would change what
+    // they can see they sent.
+    mountConversation();
+    const seen: string[] = [];
+    const dispose = chatgptAdapter.observeResponse!((node) =>
+      seen.push(node.getAttribute('data-turn-id') ?? ''),
+    );
+
+    document.querySelector<HTMLElement>('[data-turn="user"] div')!.textContent = 'edited';
+    await settle();
+
+    expect(seen).not.toContain('t1');
+    dispose();
+  });
+
+  it('reports a turn once per batch however many nodes changed', async () => {
+    mountConversation();
+    const seen: string[] = [];
+    const dispose = chatgptAdapter.observeResponse!((node) =>
+      seen.push(node.getAttribute('data-turn-id') ?? ''),
+    );
+
+    const markdown = document.querySelector<HTMLElement>('.markdown')!;
+    markdown.appendChild(document.createElement('p'));
+    markdown.appendChild(document.createElement('p'));
+    markdown.appendChild(document.createElement('p'));
+    await settle();
+
+    expect(seen.filter((id) => id === 't2')).toHaveLength(1);
+    dispose();
+  });
+
+  it('keeps rendering the page when the callback throws', async () => {
+    mountConversation();
+    const dispose = chatgptAdapter.observeResponse!(() => {
+      throw new Error('boom');
+    });
+
+    const markdown = document.querySelector<HTMLElement>('.markdown p')!;
+    expect(() => {
+      markdown.textContent = 'change';
+    }).not.toThrow();
+    await settle();
+
+    dispose();
+  });
+
+  it('detaches on dispose', async () => {
+    mountConversation();
+    const seen: string[] = [];
+    chatgptAdapter.observeResponse!((node) => seen.push(node.tagName))();
+
+    document.querySelector<HTMLElement>('.markdown p')!.textContent = 'change';
+    await settle();
+
+    expect(seen).toEqual([]);
+  });
+});
+
 describe('checkHealth', () => {
   it('reports a healthy composer and which strategy found it', () => {
     mountChatGpt();

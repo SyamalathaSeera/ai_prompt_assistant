@@ -9,6 +9,9 @@ import { createInterceptor } from '@/lib/interception/controller';
 import { createLiveScanner } from '@/lib/interception/live-scan';
 import { createPasteWatcher } from '@/lib/interception/paste';
 import { DEFAULT_SETTINGS } from '@/lib/policy/defaults';
+import { detect, redact } from '@/lib/detector/engine';
+import { findPlaceholders, hydrate, needsHydration } from '@/lib/rehydrate';
+import { putAll, resolve as resolveFromVault } from '@/lib/vault';
 import './style.css';
 
 /**
@@ -41,12 +44,40 @@ export default defineContentScript({
 
     const store = createPanelStore();
 
+    /** Conversation scope for vault entries. See ADR-005. */
+    const conversationId = () => adapter.getConversationId?.() ?? 'unsaved';
+
+    /**
+     * Remembers what a redaction replaced, so the reply can be restored.
+     *
+     * Called at the moment of sending, since that is when we know both the
+     * placeholder and the value it stood for.
+     */
+    const rememberRedaction = (original: string, replacement: string) => {
+      try {
+        if (!getSettings().rehydrateResponses) return;
+        // Re-derive the mapping from the text actually being sent, rather than
+        // trusting the UI's copy of it — the user may have edited by hand.
+        const findings = detect(original, {}, undefined);
+        const { map } = redact(original, findings);
+
+        const used = Object.fromEntries(
+          Object.entries(map).filter(([placeholder]) => replacement.includes(placeholder)),
+        );
+        void putAll(used, conversationId());
+      } catch {
+        /* failing to remember costs re-hydration, never the submission */
+      }
+    };
+
     const riskStore = createRiskStore({
       // Rewrites the composer without submitting, so the user can clean up a
       // draft on their own initiative rather than only when interrupted.
       onApplyRedaction: (text) => {
         const composer = adapter.getComposer();
-        if (composer) adapter.setText(composer, text);
+        if (!composer) return;
+        rememberRedaction(adapter.getText(composer), text);
+        adapter.setText(composer, text);
       },
     });
 
@@ -107,8 +138,54 @@ export default defineContentScript({
     const stopIntercepting = createInterceptor({
       adapter,
       getSettings,
-      onHeld: (submission) => store.present(submission),
+      onHeld: (submission) => {
+        store.present({
+          ...submission,
+          sendReplacement: (replacement) => {
+            rememberRedaction(submission.text, replacement);
+            submission.sendReplacement(replacement);
+          },
+        });
+      },
     });
+
+    /**
+     * Restores redacted values in assistant replies.
+     *
+     * Runs on every observed change to an assistant turn. `needsHydration`
+     * short-circuits the common case — most changes contain no placeholders —
+     * and because hydrated spans are skipped, our own mutations produce no
+     * further work. That is what keeps this from looping on the observer it
+     * is driven by, without any suppression flag.
+     */
+    const stopObserving =
+      adapter.observeResponse?.((turn) => {
+        void (async () => {
+          try {
+            if (!getSettings().rehydrateResponses) return;
+            if (!needsHydration(turn)) return;
+
+            const scope = conversationId();
+            const placeholders = findPlaceholders(turn);
+            if (placeholders.length === 0) return;
+
+            const resolved: Record<string, string> = {};
+            for (const placeholder of placeholders) {
+              const value = await resolveFromVault(placeholder, scope);
+              if (value !== null) resolved[placeholder] = value;
+            }
+            if (Object.keys(resolved).length === 0) return;
+
+            // Re-check: the reply may have streamed further while we awaited
+            // the vault, and React may have replaced the nodes underneath us.
+            if (!turn.isConnected) return;
+            hydrate(turn, resolved);
+          } catch {
+            /* re-hydration failing leaves placeholders on screen — which is
+               exactly what was sent, so the page stays truthful */
+          }
+        })();
+      }) ?? (() => {});
 
     const stopLiveScan = createLiveScanner({
       adapter,
@@ -133,6 +210,7 @@ export default defineContentScript({
       stopIntercepting();
       stopLiveScan();
       stopPasteWatch();
+      stopObserving();
       ui.remove();
     });
   },

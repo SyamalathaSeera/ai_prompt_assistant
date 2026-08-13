@@ -58,6 +58,26 @@ const SEND_BUTTON_STRATEGIES = [
 ];
 
 /**
+ * Conversation turns.
+ *
+ * `data-testid` is normally a last resort, but ChatGPT's turn wrapper carries
+ * no semantic role and this attribute has proven the most durable handle on
+ * it. `roleOf` below falls back to the inner ARIA-ish marker.
+ */
+const TURN_SELECTOR = '[data-testid^="conversation-turn-"]';
+
+/** Who produced a turn, with a fallback for when the outer attribute changes. */
+function roleOf(turn: HTMLElement): 'user' | 'assistant' {
+  const outer = turn.getAttribute('data-turn');
+  if (outer === 'user' || outer === 'assistant') return outer;
+
+  const inner = turn
+    .querySelector('[data-message-author-role]')
+    ?.getAttribute('data-message-author-role');
+  return inner === 'user' ? 'user' : 'assistant';
+}
+
+/**
  * True while we are submitting on the user's behalf.
  *
  * Deliberately a module-level flag rather than a marker on the event object.
@@ -271,12 +291,103 @@ export const chatgptAdapter: SiteAdapter = {
     return () => document.removeEventListener('input', onInputEvent);
   },
 
+  /**
+   * Reads the rendered conversation.
+   *
+   * Verified against a live conversation on 2026-08-13. Each turn carries
+   * `data-turn="user"|"assistant"` and a stable `data-turn-id`; the inner
+   * `data-message-author-role` is the fallback for when the outer attribute
+   * changes.
+   */
   getMessages(): ChatMessage[] {
-    // Message DOM could not be verified on 2026-08-12 — the inspected page was
-    // a fresh conversation with no turns rendered. Deliberately returns empty
-    // rather than guessing at selectors: re-hydration (milestone 0.0.5.0) is
-    // the first consumer, and it can be built against a page that has messages.
-    return [];
+    const turns = document.querySelectorAll<HTMLElement>(TURN_SELECTOR);
+
+    return [...turns].map((turn) => ({
+      role: roleOf(turn),
+      text: turn.textContent ?? '',
+      element: turn,
+      id: turn.getAttribute('data-turn-id'),
+    }));
+  },
+
+  /**
+   * Identifies the conversation from the URL.
+   *
+   * ChatGPT puts a UUID at `/c/<id>`. A fresh unsent chat has no id yet, which
+   * is reported as null rather than invented — a made-up id would let two
+   * different new chats share vault entries.
+   */
+  getConversationId(): string | null {
+    const match = /\/c\/([0-9a-f-]{16,})/i.exec(location.pathname);
+    return match?.[1] ?? null;
+  },
+
+  /**
+   * Observes assistant turns as they render and stream.
+   *
+   * Scoped to `main`. The turns' own common ancestor is an unattributed div
+   * six levels down, so there is nothing stable to anchor to — `main` is a
+   * superset but it is a semantic element that will still exist after the next
+   * redesign.
+   *
+   * `characterData` is included because streamed tokens mutate existing text
+   * nodes rather than only appending elements. Without it a placeholder
+   * arriving mid-stream would never be seen.
+   */
+  observeResponse(cb: (node: HTMLElement) => void): Disposer {
+    const root = document.querySelector('main') ?? document.body;
+
+    const notify = (turn: HTMLElement) => {
+      try {
+        cb(turn);
+      } catch {
+        /* fail open — the page must render normally regardless */
+      }
+    };
+
+    const observer = new MutationObserver((records) => {
+      const seen = new Set<HTMLElement>();
+
+      const consider = (turn: HTMLElement | null | undefined) => {
+        // Only assistant turns are re-hydrated. The user's own text is already
+        // theirs, and rewriting it would change what they can see they sent.
+        if (!turn || roleOf(turn) !== 'assistant') return;
+        if (seen.has(turn)) return;
+        seen.add(turn);
+        notify(turn);
+      };
+
+      for (const record of records) {
+        // Text and attribute changes: the turn is an ANCESTOR of the target.
+        const start =
+          record.target.nodeType === Node.ELEMENT_NODE
+            ? (record.target as HTMLElement)
+            : record.target.parentElement;
+        consider(start?.closest<HTMLElement>(TURN_SELECTOR));
+
+        // A brand-new turn arrives inside an added subtree, so it is a
+        // DESCENDANT of the added node — `closest` from the target would walk
+        // straight past it. This is the case that matters most: a fresh reply
+        // is exactly what needs re-hydrating.
+        for (const added of record.addedNodes) {
+          if (added.nodeType !== Node.ELEMENT_NODE) continue;
+          const element = added as HTMLElement;
+
+          if (element.matches?.(TURN_SELECTOR)) consider(element);
+          element
+            .querySelectorAll?.<HTMLElement>(TURN_SELECTOR)
+            .forEach((turn) => consider(turn));
+        }
+      }
+    });
+
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => observer.disconnect();
   },
 
   checkHealth(): AdapterHealth {
