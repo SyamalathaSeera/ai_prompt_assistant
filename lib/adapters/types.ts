@@ -21,6 +21,12 @@ export interface SubmitIntent {
   release: () => void;
 }
 
+export interface PasteEvent {
+  /** Plain text from the clipboard. */
+  text: string;
+  event: ClipboardEvent;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
@@ -66,6 +72,22 @@ export interface SiteAdapter {
 
   /** Subscribes to submit attempts (Enter, button click, form submit). */
   onSubmitIntent(cb: (intent: SubmitIntent) => void): Disposer;
+
+  /**
+   * Subscribes to pastes into the composer.
+   *
+   * Optional: a platform where the composer cannot be identified reliably
+   * should omit this rather than fire on every paste in the page.
+   */
+  onPaste?(cb: (paste: PasteEvent) => void): Disposer;
+
+  /**
+   * Subscribes to edits in the composer.
+   *
+   * Fires on every keystroke, so consumers must debounce. Used to drive the
+   * always-on risk indicator.
+   */
+  onInput?(cb: () => void): Disposer;
 
   /** Prior conversation turns. Optional — not every platform can support it. */
   getMessages?(): ChatMessage[];
