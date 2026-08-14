@@ -1,5 +1,6 @@
 ﻿import { byLargest, bySelector, byVisibleSelector, resolveWithFallback } from './resolve';
 import { readBlockEditorText, writeBlockEditorText } from './block-editor';
+import { HEURISTIC_COMPOSER_STRATEGIES } from './heuristic';
 import type {
   AdapterHealth,
   ChatMessage,
@@ -47,6 +48,9 @@ const COMPOSER_STRATEGIES = [
   // Last resort. Requires visible layout: the page ships a 0×0 disabled
   // textarea that would otherwise be selected and silently swallow writes.
   byVisibleSelector('visible-textarea', 'textarea:not([disabled])'),
+  // Platform-agnostic recovery, after everything that names claude.ai has
+  // failed. Reaching these reports as `degraded`, never healthy.
+  ...HEURISTIC_COMPOSER_STRATEGIES,
 ];
 
 /**

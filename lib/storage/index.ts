@@ -19,6 +19,19 @@ const SETTINGS_KEY = 'apa:settings';
 const COUNTERS_KEY = 'apa:counters';
 
 /**
+ * Per-host protection health.
+ *
+ * `.session`, not `.local`: it describes the page as it is right now, and a
+ * stale "protection unavailable" surviving a browser restart would be a lie in
+ * the more dangerous direction — or, worse, a stale "healthy" would.
+ *
+ * Records a level and the name of the strategy that resolved. **No URL, no
+ * prompt content, no page text** — the host is already implied by which tab the
+ * popup is looking at, and nothing here is transmitted anywhere regardless.
+ */
+const HEALTH_KEY = 'apa:health';
+
+/**
  * Synchronous view of settings, kept current by the change listener.
  *
  * The interception path runs on every submission and cannot await storage:
@@ -197,6 +210,51 @@ export async function deleteAllData(): Promise<void> {
     /* likewise */
   }
   cached = null;
+}
+
+/**
+ * What the popup needs to answer "am I protected on this page right now?".
+ *
+ * `level` mirrors `lib/health`'s, kept as a plain string so the storage layer
+ * does not depend on the health module and vice versa.
+ */
+export interface StoredHealth {
+  level: 'healthy' | 'degraded' | 'unavailable';
+  /** Strategy that resolved the composer, for diagnosis. Never transmitted. */
+  resolvedVia: string | null;
+  /** Epoch ms, so the popup can ignore a reading from a page long since gone. */
+  at: number;
+}
+
+/**
+ * Records how well protection is working on a host.
+ *
+ * Best-effort throughout. A failure to write health is not itself a protection
+ * failure, and it must never propagate into the content script — reporting
+ * that something is broken should not be able to break anything.
+ */
+export async function recordHealth(host: string, health: StoredHealth): Promise<void> {
+  try {
+    const stored = await browser.storage.session.get(HEALTH_KEY);
+    const map = (stored[HEALTH_KEY] ?? {}) as Record<string, StoredHealth>;
+
+    await browser.storage.session.set({
+      [HEALTH_KEY]: { ...map, [host]: health },
+    });
+  } catch {
+    /* health reporting is advisory; losing it costs a message, not protection */
+  }
+}
+
+/** Reads the last recorded health for a host, or null if there is none. */
+export async function getHealth(host: string): Promise<StoredHealth | null> {
+  try {
+    const stored = await browser.storage.session.get(HEALTH_KEY);
+    const map = (stored[HEALTH_KEY] ?? {}) as Record<string, StoredHealth>;
+    return map[host] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Resets the in-memory cache. Test seam only. */

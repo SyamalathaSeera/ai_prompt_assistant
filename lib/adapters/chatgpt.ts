@@ -1,4 +1,5 @@
 ﻿import { byLargest, bySelector, byVisibleSelector, resolveWithFallback } from './resolve';
+import { HEURISTIC_COMPOSER_STRATEGIES } from './heuristic';
 import { readBlockEditorText, writeBlockEditorText } from './block-editor';
 import type {
   AdapterHealth,
@@ -47,9 +48,12 @@ const COMPOSER_STRATEGIES = [
   bySelector('role-textbox', '[contenteditable="true"][role="textbox"]'),
   bySelector('prosemirror', '.ProseMirror[contenteditable="true"]'),
   byLargest('largest-editable', '[contenteditable="true"]'),
-  // Last resort, and the reason `byVisibleSelector` exists: an invisible
-  // textarea would otherwise be selected here and silently swallow writes.
+  // The reason `byVisibleSelector` exists: an invisible textarea would
+  // otherwise be selected here and silently swallow writes.
   byVisibleSelector('visible-textarea', 'form textarea'),
+  // Platform-agnostic recovery, after everything that names chatgpt.com has
+  // failed. Reaching these reports as `degraded`, never healthy.
+  ...HEURISTIC_COMPOSER_STRATEGIES,
 ];
 
 const SEND_BUTTON_STRATEGIES = [
@@ -350,9 +354,26 @@ export const chatgptAdapter: SiteAdapter = {
 
   checkHealth(): AdapterHealth {
     const composer = findComposer();
+
+    /*
+     * Three paths reach submission — Enter, the send button, and form submit —
+     * and intercepting any one of them is enough to hold a prompt.
+     *
+     * This previously required a `<form>`, which was too strict in a way that
+     * mattered: the health layer reads a false here as "protection
+     * unavailable", so a page that dropped its form while remaining perfectly
+     * interceptable via Enter would have told the user they were unprotected
+     * when they were not. A false alarm from a security tool spends the
+     * credibility it needs for the real one.
+     */
+    const form = document.querySelector('form') !== null;
+    const sendButton = findSendButton() !== null;
+
     return {
       composerFound: composer.element !== null,
-      submitListenersAttached: document.querySelector('form') !== null,
+      // The keydown path is attached to `document` and cannot fail to bind, so
+      // a resolvable composer means Enter is already covered.
+      submitListenersAttached: composer.element !== null || form || sendButton,
       resolvedVia: composer.resolvedVia,
     };
   },

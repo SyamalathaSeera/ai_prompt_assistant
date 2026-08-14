@@ -59,11 +59,16 @@ export default defineConfig({
           include: [
             'lib/adapters/**/*.test.ts',
             'lib/interception/**/*.test.ts',
+            // Health grading is pure, but the monitor drives an adapter that
+            // reads the DOM, so its tests belong with the browser-dependent code.
+            'lib/health/**/*.test.ts',
             // The vault talks to chrome.storage, so it belongs with the
             // browser-dependent code rather than the pure `lib` project.
             'lib/vault/**/*.test.ts',
             'lib/rehydrate/**/*.test.ts',
             'lib/storage/**/*.test.ts',
+            // The error log writes to chrome.storage.
+            'lib/errors/**/*.test.ts',
             // The model layer probes browser globals, so it belongs with the
             // browser-dependent code rather than the pure `lib` project.
             'lib/model/**/*.test.ts',

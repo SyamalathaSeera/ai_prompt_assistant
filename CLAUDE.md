@@ -26,9 +26,9 @@ No backend, no server, no telemetry.
 
 ## Current Status
 
-**Phase**: Post-Milestone 0.4.0.0. Next up: 0.5.0.0, Hardening
+**Phase**: Post-Milestone 0.5.0.0. Next up: 0.6.0.0, Onboarding
 **Last Updated**: 2026-08-14
-**Version**: 0.4.0.4
+**Version**: 0.5.0.4
 
 ### Completed Milestones
 - **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind
@@ -96,11 +96,21 @@ No backend, no server, no telemetry.
   than submit so it structurally cannot delay a send. Unmeasured against the real
   model: `CLARIFY_TIMEOUT_MS` is borrowed from refinement, not observed.
 
+- **0.5.0.0** (2026-08-14): Hardening, resilience, performance. 1184 tests **+ 12
+  end-to-end** against the real built extension in a real browser — the first suite
+  here that could catch what jsdom cannot, and it immediately found two bugs 1,179
+  unit tests had missed. Adapters now self-heal through platform-agnostic heuristics
+  and report health in three states, so a silent failure became a visible one.
+  Fail-open is proven by enumerated fault injection at every stage. **`redact()` was
+  quadratic** — 1,089ms on a 300KB paste, re-run on every checkbox toggle — and is
+  now 7.5ms. **Task 2 (remote selector config) was deferred past 1.0**: it was the
+  one planned exception to rule #1 below, and rule #1 is now mechanically enforced,
+  so the exception was declined rather than carved out.
+
 ### Active Milestone
-- _None._ Run `/milestone-start 0.5.0.0` to begin.
+- _None._ Run `/milestone-start 0.6.0.0` to begin.
 
 ### Planned Next
-- **0.5.0.0**: Hardening, e2e, performance
 - **0.6.0.0**: Onboarding
 - **0.9.0.0** → **1.0.0.0**: Beta, then public launch
 
