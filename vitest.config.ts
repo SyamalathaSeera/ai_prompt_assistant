@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import { WxtVitest } from 'wxt/testing/vitest-plugin';
 
 /**
@@ -37,8 +37,18 @@ export default defineConfig({
             // policy/allowlist and policy/migrate are pure; policy has no
             // browser dependency of its own.
             'lib/policy/**/*.test.ts',
+            // Clarification decides whether to act from the draft text alone.
+            // Keeping it here means the "no model, no DOM" half of the feature
+            // cannot quietly acquire either one.
+            'lib/clarify/**/*.test.ts',
             'test/**/*.test.ts',
           ],
+          // `interpret` is the one clarify module that reaches the model
+          // layer, so it belongs to the `ui` project. Excluding it here rather
+          // than narrowing the glob above keeps the default the strict one:
+          // a new file under lib/clarify/ lands in the pure project unless
+          // someone deliberately moves it.
+          exclude: [...configDefaults.exclude, 'lib/clarify/interpret.test.ts'],
         },
       },
       {
@@ -58,6 +68,10 @@ export default defineConfig({
             // browser-dependent code rather than the pure `lib` project.
             'lib/model/**/*.test.ts',
             'lib/refine/**/*.test.ts',
+            // The one part of lib/clarify that talks to the model layer. The
+            // rest stays in the `lib` project, which is what stops the pure
+            // half of this feature from quietly acquiring a browser dependency.
+            'lib/clarify/interpret.test.ts',
             // Messaging is a thin wrapper over the extension APIs.
             'lib/messaging.test.ts',
             'components/**/*.test.{ts,tsx}',

@@ -141,6 +141,10 @@ export function coerceSettings(stored: unknown): Settings {
     // Additive in a later build, so settings stored before it exists simply
     // fall back to the default — no schema step, nothing lost.
     refineStyle: oneOf(stored.refineStyle, STYLE_IDS, DEFAULT_SETTINGS.refineStyle),
+    // Also additive, and the fallback is `false`: an existing user updating
+    // into this build must not find a new feature volunteering opinions at
+    // them. Opting in stays a deliberate act.
+    clarifyEnabled: boolean(stored.clarifyEnabled, DEFAULT_SETTINGS.clarifyEnabled),
     allowlist: allowlistEntries(stored.allowlist),
     pausedHosts: stringArray(stored.pausedHosts, []),
     pausedUntil:

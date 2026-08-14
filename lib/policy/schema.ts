@@ -54,6 +54,21 @@ export interface Settings {
   disabledRuleIds: string[];
 
   /**
+   * Offer to resolve vague references against the conversation.
+   *
+   * **Off by default**, and the only feature in the product that ships that
+   * way. The others either protect something or wait to be asked; this one
+   * volunteers an opinion about what the user meant, which makes it the
+   * noisiest thing here and the worst possible first impression. Turning it on
+   * should be a choice someone makes after the extension has earned some
+   * trust, not the first thing it does to them.
+   *
+   * Revisit after beta, with data about how often it is accepted rather than a
+   * guess about how often it would be.
+   */
+  clarifyEnabled: boolean;
+
+  /**
    * Which refinement style the user last chose.
    *
    * Remembered because the choice is a habit, not a per-prompt decision:
