@@ -26,9 +26,9 @@ No backend, no server, no telemetry.
 
 ## Current Status
 
-**Phase**: Milestone 0.4.0.0, Clarify With Context
-**Last Updated**: 2026-08-13
-**Version**: 0.3.0.5
+**Phase**: Post-Milestone 0.4.0.0. Next up: 0.5.0.0, Hardening
+**Last Updated**: 2026-08-14
+**Version**: 0.4.0.4
 
 ### Completed Milestones
 - **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind
@@ -87,8 +87,17 @@ No backend, no server, no telemetry.
   not have — an 8s timeout that would have killed a quarter of successful rewrites, and a
   length floor that refused good compressions of rambling drafts.
 
+- **0.4.0.0** (2026-08-14): Clarify with context. 1089 tests. Resolves "add this over
+  there" against the conversation and **asks** before changing anything. The bar is
+  grounding: every phrase the rewrite introduces must trace to a turn the model was
+  actually shown, and one untraceable phrase refuses the whole interpretation — which
+  is what makes "here is the message it came from" a guarantee rather than a label.
+  Ships **off by default**, the only feature that does, and is wired to input rather
+  than submit so it structurally cannot delay a send. Unmeasured against the real
+  model: `CLARIFY_TIMEOUT_MS` is borrowed from refinement, not observed.
+
 ### Active Milestone
-- **Milestone 0.4.0.0**: Clarify with context
+- _None._ Run `/milestone-start 0.5.0.0` to begin.
 
 ### Planned Next
 - **0.5.0.0**: Hardening, e2e, performance

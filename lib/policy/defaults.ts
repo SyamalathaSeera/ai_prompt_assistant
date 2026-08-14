@@ -30,6 +30,9 @@ export const DEFAULT_SETTINGS: Settings = {
   // Sourced from the rule definitions themselves so the default experience
   // and the rules cannot drift apart.
   disabledRuleIds: [...DEFAULT_DISABLED_RULE_IDS],
+  // The one feature that ships off. It offers an opinion about what the user
+  // meant, so it has to be opted into rather than discovered by surprise.
+  clarifyEnabled: false,
   refineStyle: DEFAULT_STYLE,
   allowlist: [],
   pausedHosts: [],

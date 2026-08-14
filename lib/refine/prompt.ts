@@ -92,7 +92,7 @@ export function getStyle(id: RefinementStyle): StyleDefinition {
  * something prettier would break re-hydration and, worse, make the user think
  * a different value was sent.
  */
-const PLACEHOLDER_RULE =
+export const PLACEHOLDER_RULE =
   'Text in square brackets like [REDACTED_SOMETHING_1] is a placeholder. Copy each one ' +
   'through exactly as it appears. Never alter, translate, remove, or add one.';
 

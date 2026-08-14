@@ -1,7 +1,7 @@
 ﻿# TASKS.md: AI Prompt Assistant Milestone Tracker
 
-**Last Updated**: 2026-08-13
-**Current Version**: 0.3.0.5
+**Last Updated**: 2026-08-14
+**Current Version**: 0.4.0.4
 
 ---
 
@@ -18,6 +18,7 @@
 | [0.1.0.0](./tasks/Milestone0.1.0.0.md) | Complete | 2026-08-13 | 5/5 | Multi-platform adapters (Claude, Gemini) |
 | [0.2.0.0](./tasks/Milestone0.2.0.0.md) | Complete | 2026-08-13 | 6/6 | On-device model foundation |
 | [0.3.0.0](./tasks/Milestone0.3.0.0.md) | Complete | 2026-08-13 | 6/6 | Prompt refinement |
+| [0.4.0.0](./tasks/Milestone0.4.0.0.md) | Complete | 2026-08-14 | 5/5 | Clarify with context |
 
 ---
 
@@ -25,7 +26,7 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.4.0.0](./tasks/Milestone0.4.0.0.md) | Ready | MEDIUM | Clarify with context |
+| _(none)_ | — | — | Run `/milestone-start 0.5.0.0` to begin the next one |
 
 ---
 

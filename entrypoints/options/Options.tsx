@@ -364,6 +364,13 @@ function Options() {
             description="Shows your real values back to you where a reply repeats a placeholder. They never leave this device."
           />
           <Toggle
+            testid="setting-clarify"
+            checked={settings.clarifyEnabled}
+            onChange={(clarifyEnabled) => update({ clarifyEnabled })}
+            label="Ask what vague references mean"
+            description="Off by default. When a message says 'add this over there', offers one reading of it — with the earlier message it came from — before you send. Never changes anything without you saying yes."
+          />
+          <Toggle
             testid="setting-dummy"
             checked={settings.placeholderStyle === 'dummy'}
             onChange={(dummy) =>

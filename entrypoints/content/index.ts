@@ -4,6 +4,7 @@ import { detectTheme, observeTheme } from '@/components/theme';
 import { createPanelStore } from '@/components/panel-store';
 import { createRiskStore } from '@/components/risk-store';
 import { createRefineStore } from '@/components/refine-store';
+import { createClarifyStore } from '@/components/clarify-store';
 import { getModelFeatures } from '@/lib/model';
 import { Panel } from '@/components/Panel';
 import { resolveAdapter } from '@/lib/adapters/registry';
@@ -152,6 +153,32 @@ export default defineContentScript({
       },
     });
 
+    /**
+     * Clarify with context.
+     *
+     * Constructed unconditionally but only ever *driven* when the setting is
+     * on — see the input watcher below. Building it costs nothing; it holds no
+     * timers and does no work until `consider()` is called.
+     */
+    const clarifyStore = createClarifyStore({
+      getDraft: () => {
+        const composer = adapter.getComposer();
+        return composer ? adapter.getText(composer) : '';
+      },
+      // Writes text and does NOT submit, exactly like refinement. Confirming
+      // an interpretation is not the same as saying you are finished.
+      applyToComposer: (text) => {
+        const composer = adapter.getComposer();
+        if (composer) adapter.setText(composer, text);
+      },
+      // Optional on the adapter: Gemini declines to read messages rather than
+      // guess at unverified DOM, so there it simply never has context and the
+      // feature stays silent.
+      getTurns: () => adapter.getMessages?.() ?? [],
+      getConversationId: () => adapter.getConversationId?.() ?? null,
+      getDisabledRuleIds: () => getSettings().disabledRuleIds,
+    });
+
     const riskStore = createRiskStore({
       // Rewrites the composer without submitting, so the user can clean up a
       // draft on their own initiative rather than only when interrupted.
@@ -195,6 +222,7 @@ export default defineContentScript({
             store,
             riskStore,
             refineStore,
+            clarifyStore,
             getComposer: () => adapter.getComposer(),
             refineAvailable,
           }),
@@ -316,6 +344,40 @@ export default defineContentScript({
     };
     browser.runtime.onMessage.addListener(onCommandMessage);
 
+    /**
+     * What drives clarification.
+     *
+     * **Deliberately hung off input, not off submit.** Nothing in this feature
+     * may sit on the path a prompt takes to leave the page: the interception
+     * controller already holds submissions for a reason that justifies the
+     * cost, and an unsolicited suggestion is not that reason. Someone who never
+     * looks at this feature must not wait a millisecond longer to send.
+     *
+     * The consequence is that the question can only ever arrive *before* a
+     * send, never during one — and if it has not arrived by the time they press
+     * Enter, the prompt goes as written.
+     */
+    const CLARIFY_IDLE_MS = 1200;
+    let clarifyTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const stopClarifyWatch =
+      adapter.onInput?.(() => {
+        // Read fresh every time: the user can turn this on or off mid-session
+        // and must not have to reload the page for it to take effect.
+        if (!getSettings().clarifyEnabled) return;
+        if (!refineAvailable) return;
+
+        // Waits for a pause in typing. Someone mid-sentence has not finished
+        // saying what they mean, and interpreting a half-written draft would
+        // be both wasteful and wrong.
+        clearTimeout(clarifyTimer);
+        clarifyTimer = setTimeout(() => {
+          // Fire-and-forget on purpose. Nothing awaits this, so nothing can be
+          // delayed by it.
+          void clarifyStore.consider();
+        }, CLARIFY_IDLE_MS);
+      }) ?? (() => {});
+
     const stopPasteWatch = createPasteWatcher({
       adapter,
       getSettings,
@@ -330,6 +392,9 @@ export default defineContentScript({
       stopIntercepting();
       stopLiveScan();
       stopPasteWatch();
+      clearTimeout(clarifyTimer);
+      stopClarifyWatch();
+      clarifyStore.cancel();
       stopObserving();
       stopWatchingSettings();
       ui.remove();

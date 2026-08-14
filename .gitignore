@@ -34,3 +34,6 @@ Thumbs.db
 
 # test / coverage
 coverage/
+
+# session state (terminal-scoped, machine-specific paths)
+.claude-sessions/
