@@ -9,6 +9,7 @@ import {
   type Platform,
 } from '@/lib/adapters/platforms';
 import { deleteAllData, getSettings, setSettings } from '@/lib/storage';
+import { clearErrors, formatForReport, getErrors, type LoggedError } from '@/lib/errors';
 import { ensureSession, getModelFeatures, type ModelFeatures } from '@/lib/model';
 import { STYLES, type RefinementStyle } from '@/lib/refine';
 import { removeFromAllowlist } from '@/lib/policy/allowlist';
@@ -299,9 +300,12 @@ function ImprovementSection({
 function Options() {
   const [settings, setLocal] = useState<Settings | null>(null);
   const [deleted, setDeleted] = useState(false);
+  const [errors, setErrors] = useState<LoggedError[]>([]);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(() => {
     void getSettings().then(setLocal);
+    void getErrors().then(setErrors);
   }, []);
 
   useEffect(load, [load]);
@@ -510,6 +514,69 @@ function Options() {
           )}
         </div>
       </Section>
+
+      {/*
+        The log exists so a bug can be reported without pasting a prompt into
+        an issue tracker. There is no telemetry in this product and there is
+        not going to be, so the alternative is asking people to describe
+        crashes from memory.
+
+        Hidden entirely when empty. An always-visible "Errors (0)" panel invites
+        people to go looking for problems they do not have.
+      */}
+      {errors.length > 0 && (
+        <Section title="Problems">
+          <div className="rounded-lg border border-current/10 p-4 text-sm">
+            <p className="opacity-70">
+              {errors.length === 1
+                ? 'One problem was recorded on this device.'
+                : `${errors.length} problems were recorded on this device.`}{' '}
+              Nothing here has been sent anywhere, and secrets are removed before
+              anything is written down. You can paste this into a bug report.
+            </p>
+
+            <ul data-testid="error-log" className="mt-3 grid gap-2">
+              {errors.map((error) => (
+                <li
+                  key={`${error.at}:${error.where}`}
+                  data-testid="error-entry"
+                  className="rounded-md border border-current/10 p-2 font-mono text-xs"
+                >
+                  <div className="opacity-60">
+                    {new Date(error.at).toLocaleString()} · {error.where}
+                  </div>
+                  <div className="mt-1 break-words">{error.message}</div>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                data-testid="copy-errors"
+                onClick={() => {
+                  void navigator.clipboard
+                    ?.writeText(formatForReport(errors))
+                    .then(() => setCopied(true))
+                    .catch(() => setCopied(false));
+                }}
+                className="rounded-md border border-current/25 px-3 py-1.5 text-xs"
+              >
+                {copied ? 'Copied' : 'Copy for a bug report'}
+              </button>
+
+              <button
+                type="button"
+                data-testid="clear-errors"
+                onClick={() => void clearErrors().then(load)}
+                className="rounded-md border border-current/25 px-3 py-1.5 text-xs"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </Section>
+      )}
     </main>
   );
 }

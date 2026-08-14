@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import { browser } from 'wxt/browser';
 import { purge, size, TTL_MS } from '@/lib/vault';
-import { countRecent, getCounters, getSettings, setSettings } from '@/lib/storage';
+import { countRecent, getCounters, getHealth, getSettings, setSettings } from '@/lib/storage';
+import type { StoredHealth } from '@/lib/storage';
 import { PAUSE_DURATION_MS } from '@/lib/policy/defaults';
 import { isPaused } from '@/lib/interception/controller';
 import { isSupportedHost } from '@/lib/adapters/registry';
@@ -58,10 +59,16 @@ function App() {
   const [week, setWeek] = useState(0);
   const [total, setTotal] = useState(0);
   const [held, setHeld] = useState(0);
+  const [health, setHealth] = useState<StoredHealth | null>(null);
 
   const refresh = useCallback(() => {
     void getSettings().then(setLocalSettings);
-    void activeHostname().then(setHost);
+    void activeHostname().then((hostname) => {
+      setHost(hostname);
+      // Recorded by the content script on this page. Local only — see
+      // lib/storage's HEALTH_KEY note.
+      if (hostname) void getHealth(hostname).then(setHealth);
+    });
     void countRecent(7).then(setWeek);
     void getCounters().then((c) => setTotal(c.totalCatches));
     void size()
@@ -90,12 +97,29 @@ function App() {
       ? settings.pausedUntil
       : null;
 
+  /*
+   * Whether the page itself reports being able to protect.
+   *
+   * Only trusted on a supported host that the content script has actually
+   * reported on. Absent health is NOT read as broken — the popup may simply
+   * have opened before the first check landed, and claiming failure on missing
+   * data would cry wolf on a perfectly healthy page.
+   */
+  const pageBroken = supported && health?.level === 'unavailable';
+  const pageDegraded = supported && health?.level === 'degraded';
+
   // The status dot uses the SAME predicate the interception controller uses,
   // so the popup can never claim protection the content script is not
   // actually providing. The breakdown above is only for wording the message.
-  const active = settings.enabled && !isPaused(settings, host ?? '');
+  //
+  // Health is folded in for the same reason: a green dot over a page where the
+  // composer cannot be found would be the exact false reassurance this
+  // milestone exists to eliminate.
+  const active = settings.enabled && !isPaused(settings, host ?? '') && !pageBroken;
 
-  const status = !settings.enabled
+  const status = pageBroken
+    ? 'Protection unavailable on this page'
+    : !settings.enabled
     ? 'Turned off'
     : timedPause !== null
       ? `Paused for ${minutesLeft(timedPause)} more minutes`
@@ -121,6 +145,33 @@ function App() {
       <p className="mt-1 text-sm opacity-70" data-testid="status">
         {status}
       </p>
+
+      {/*
+        Said twice on purpose — here and on the page itself. The in-page notice
+        is dismissible, and someone who dismissed it and later wondered "is this
+        thing actually working?" opens the popup to ask. That question must have
+        an honest answer in both places.
+      */}
+      {pageBroken && (
+        <p
+          data-testid="health-detail"
+          role="alert"
+          className="mt-2 rounded-md border border-current/25 p-2 text-xs"
+        >
+          The composer could not be found on this page, so prompts are not being
+          checked. This usually means the site changed. Reloading may fix it.
+        </p>
+      )}
+
+      {pageDegraded && (
+        <p
+          data-testid="health-detail"
+          className="mt-2 rounded-md border border-current/25 p-2 text-xs opacity-80"
+        >
+          This site changed. Prompts are still being checked, using a fallback
+          method{health?.resolvedVia ? ` (${health.resolvedVia})` : ''}.
+        </p>
+      )}
 
       <section className="mt-4 grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-current/15 p-3">

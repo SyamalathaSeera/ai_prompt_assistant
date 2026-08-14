@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ChatGPT (fixture)</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; padding: 24px; }
+      main { max-width: 720px; margin: 0 auto 120px; }
+      .turn { padding: 12px; border-radius: 8px; margin-bottom: 12px; background: #f4f4f5; }
+      form { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); width: 680px;
+             display: flex; gap: 8px; align-items: end; }
+      #prompt-textarea { flex: 1; min-height: 52px; padding: 14px; border: 1px solid #d4d4d8;
+                         border-radius: 12px; background: #fff; }
+      #sent { margin-top: 16px; }
+    </style>
+  </head>
+  <body>
+    <!--
+      A fixture that mirrors chatgpt.com's real structure, as verified against
+      the live page on 2026-08-12 and recorded in lib/adapters/chatgpt.ts:
+
+        - the composer is a ProseMirror contenteditable DIV with
+          id="prompt-textarea" and role="textbox" — NOT a textarea, despite
+          the id
+        - the page also ships a 0x0 <textarea name="prompt-textarea"> decoy,
+          reproduced below because it is the exact thing that broke an early
+          selector and no jsdom test would have found it
+        - the send button carries data-testid="send-button" and
+          id="composer-submit-button"
+        - there is a real <form> ancestor, so submit is interceptable
+        - turns carry data-testid="conversation-turn-N", data-turn and
+          data-turn-id
+
+      Deliberately static HTML with a few lines of script. A fixture that
+      reproduced ChatGPT's actual framework would be a maintenance burden that
+      tested React more than it tested us.
+    -->
+    <main>
+      <div
+        class="turn"
+        data-testid="conversation-turn-1"
+        data-turn="user"
+        data-turn-id="turn-1"
+      >
+        <div data-message-author-role="user">I am working on the login form</div>
+      </div>
+
+      <div
+        class="turn"
+        data-testid="conversation-turn-2"
+        data-turn="assistant"
+        data-turn-id="turn-2"
+      >
+        <div data-message-author-role="assistant">
+          The settings page uses a different layout.
+        </div>
+      </div>
+
+      <div id="sent"></div>
+    </main>
+
+    <form id="composer-form">
+      <!-- The 0x0 decoy. Present on the real page; writing into it does nothing. -->
+      <textarea name="prompt-textarea" style="width: 0; height: 0; border: 0; padding: 0"></textarea>
+
+      <div
+        id="prompt-textarea"
+        class="ProseMirror"
+        contenteditable="true"
+        role="textbox"
+        translate="no"
+      ><p><br /></p></div>
+
+      <button
+        id="composer-submit-button"
+        data-testid="send-button"
+        aria-label="Send prompt"
+      >
+        Send
+      </button>
+    </form>
+
+    <script>
+      /*
+       * Records what a submission would have sent, so a test can assert on the
+       * text that actually left the composer rather than on our own UI.
+       *
+       * `window.__sent` is the whole point of this fixture: it is the only
+       * honest way to check "send original" versus "send redacted".
+       */
+      window.__sent = [];
+
+      const form = document.getElementById('composer-form');
+      const composer = document.getElementById('prompt-textarea');
+
+      function send() {
+        const text = composer.innerText.trim();
+        if (text === '') return;
+
+        window.__sent.push(text);
+
+        const turn = document.createElement('div');
+        turn.className = 'turn';
+        turn.dataset.testid = `conversation-turn-${window.__sent.length + 2}`;
+        turn.dataset.turn = 'user';
+        turn.dataset.turnId = `turn-${window.__sent.length + 2}`;
+        turn.textContent = text;
+        document.getElementById('sent').append(turn);
+
+        composer.innerHTML = '<p><br /></p>';
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        send();
+      });
+
+      // The real page sends on Enter without Shift.
+      composer.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' || event.shiftKey) return;
+        event.preventDefault();
+        send();
+      });
+    </script>
+  </body>
+</html>

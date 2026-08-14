@@ -7,6 +7,7 @@ import { createRefineStore } from '@/components/refine-store';
 import { createClarifyStore } from '@/components/clarify-store';
 import { getModelFeatures } from '@/lib/model';
 import { Panel } from '@/components/Panel';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { resolveAdapter } from '@/lib/adapters/registry';
 import { createInterceptor } from '@/lib/interception/controller';
 import { createLiveScanner } from '@/lib/interception/live-scan';
@@ -14,7 +15,10 @@ import { createPasteWatcher } from '@/lib/interception/paste';
 import { detect, redact } from '@/lib/detector/engine';
 import { findPlaceholders, hydrate, needsHydration } from '@/lib/rehydrate';
 import { putAll, resolve as resolveFromVault } from '@/lib/vault';
-import { getSettingsSync, initSettings, recordCatch, setSettings } from '@/lib/storage';
+import { getSettingsSync, initSettings, recordCatch, recordHealth, setSettings } from '@/lib/storage';
+import { createHealthMonitor } from '@/lib/health';
+import { recordError } from '@/lib/errors';
+import type { HealthReport } from '@/lib/health';
 import { isRefineMessage } from '@/lib/messaging';
 import { browser } from 'wxt/browser';
 import { addToAllowlist, filterAllowlisted } from '@/lib/policy/allowlist';
@@ -193,6 +197,64 @@ export default defineContentScript({
     let mountedIn: HTMLElement | undefined;
     let stopThemeWatch: (() => void) | undefined;
 
+    /**
+     * Whether protection is actually working on this page.
+     *
+     * Held here and pushed into the Panel on change, rather than living in a
+     * store, because it has exactly one writer and the UI only reads it.
+     */
+    let health: HealthReport = {
+      level: 'healthy',
+      resolvedVia: null,
+      composerFound: true,
+      submitListenersAttached: true,
+      attempts: 0,
+    };
+
+    /** Re-renders the panel. Called when health changes. */
+    let repaint: () => void = () => {};
+
+    /**
+     * Set once the injected UI has crashed.
+     *
+     * From that point the extension must stop holding submissions. The
+     * reasoning is uncomfortable but not close: interception is only safe
+     * because there is a UI to resolve what it holds. Without one, every held
+     * prompt is a prompt the user cannot send — so we stop protecting and say
+     * so loudly, rather than protecting in a way that traps them.
+     */
+    let uiBroken = false;
+
+    /**
+     * The single response to any UI crash, wherever it was caught.
+     *
+     * `store.dismiss()` runs first and is the safety argument: dismissal leaves
+     * the user's text in the composer, unsent. Releasing would send the
+     * original — secrets included — at precisely the moment we lost the ability
+     * to warn them about it.
+     */
+    const handleUiError = (error: unknown) => {
+      uiBroken = true;
+      health = { ...health, level: 'unavailable', resolvedVia: null };
+
+      try {
+        store.dismiss();
+      } catch {
+        /* the store is already unusable; the rest still has to happen */
+      }
+
+      void recordError('ui.panel', error);
+      void recordHealth(location.hostname, {
+        level: 'unavailable',
+        resolvedVia: null,
+        at: Date.now(),
+      });
+
+      // Repaint so the health notice appears. It renders outside the boundary
+      // precisely so it can still be shown after this.
+      repaint();
+    };
+
     const ui = await createShadowRootUi(ctx, {
       name: 'ai-prompt-assistant',
       position: 'overlay',
@@ -217,17 +279,37 @@ export default defineContentScript({
           container.setAttribute('data-theme', theme);
         });
 
-        render(
-          h(Panel, {
-            store,
-            riskStore,
-            refineStore,
-            clarifyStore,
-            getComposer: () => adapter.getComposer(),
-            refineAvailable,
-          }),
-          container,
-        );
+        repaint = () => {
+          /*
+           * A boundary here as well as inside the Panel.
+           *
+           * The inner ones isolate an individual surface. This one catches what
+           * they structurally cannot: a throw in the Panel's own body — a hook,
+           * a store read, the prop wiring itself — which happens before any
+           * inner boundary exists to catch it. Found by a test that expected
+           * the inner boundary to be enough and was wrong.
+           */
+          render(
+            h(
+              ErrorBoundary,
+              { onError: handleUiError },
+              h(Panel, {
+                store,
+                riskStore,
+                refineStore,
+                clarifyStore,
+                getComposer: () => adapter.getComposer(),
+                refineAvailable,
+                health: health.level,
+                healthResolvedVia: health.resolvedVia,
+                onUiError: handleUiError,
+              }),
+            ),
+            container,
+          );
+        };
+
+        repaint();
         mountedIn = container;
         return container;
       },
@@ -235,6 +317,7 @@ export default defineContentScript({
       onRemove: () => {
         stopThemeWatch?.();
         stopThemeWatch = undefined;
+        repaint = () => {};
         // Preact unmounts by rendering null into the same container.
         if (mountedIn) render(null, mountedIn);
         mountedIn = undefined;
@@ -242,6 +325,54 @@ export default defineContentScript({
     });
 
     ui.mount();
+
+    /**
+     * Is this page actually protected?
+     *
+     * Started after mount so the first report has somewhere to render. Retries
+     * on a backoff, because the usual reason a first check fails is that we
+     * arrived before the composer did — treating that as breakage would show
+     * "protection unavailable" on nearly every page load.
+     *
+     * Nothing here is transmitted. The report is rendered locally and written
+     * to session storage so the popup can answer the same question.
+     */
+    const healthMonitor = createHealthMonitor({
+      adapter,
+      onChange: (report) => {
+        health = report;
+        repaint();
+
+        console.log(
+          `[APA] protection ${report.level}` +
+            (report.resolvedVia ? ` (via ${report.resolvedVia})` : ''),
+        );
+
+        void recordHealth(location.hostname, {
+          level: report.level,
+          resolvedVia: report.resolvedVia,
+          at: Date.now(),
+        });
+      },
+    });
+
+    /**
+     * Wakes the monitor when the page changes underneath us.
+     *
+     * SPA navigation swaps the composer without reloading, so a page that was
+     * healthy can become unavailable — or, more usefully, one that had given up
+     * can recover. Throttled hard: this fires constantly on a streaming reply,
+     * and a health check per mutation would be its own performance bug.
+     */
+    let recheckTimer: ReturnType<typeof setTimeout> | undefined;
+    const healthObserver = new MutationObserver(() => {
+      if (recheckTimer !== undefined) return;
+      recheckTimer = setTimeout(() => {
+        recheckTimer = undefined;
+        healthMonitor.recheck();
+      }, 2000);
+    });
+    healthObserver.observe(document.body, { childList: true, subtree: true });
 
     /**
      * Suppresses allowlisted values.
@@ -258,6 +389,19 @@ export default defineContentScript({
       getSettings,
       onHeld: (submission) => {
         void (async () => {
+          /*
+           * No UI, no holding.
+           *
+           * Checked here rather than by tearing down the interceptor, because
+           * this path is also what releases a submission that was cancelled
+           * microseconds before the crash. Disposing the listener would leave
+           * that one stranded — the exact failure this task exists to remove.
+           */
+          if (uiBroken) {
+            submission.sendOriginal();
+            return;
+          }
+
           const blocking = await applyAllowlist(submission.text, submission.blocking);
 
           // Everything blocking was allowlisted, so there is nothing to ask
@@ -323,6 +467,22 @@ export default defineContentScript({
     const stopLiveScan = createLiveScanner({
       adapter,
       getSettings,
+      /**
+       * A scan that blew the budget.
+       *
+       * The hook existed since 0.0.3.0 and was never connected to anything,
+       * which made it a measurement nobody could see. Recording it means a
+       * performance problem on a real page arrives as a line in the options
+       * page rather than as a vague report that "it feels slow".
+       *
+       * Receives timing and length only — never the text.
+       */
+      onSlowScan: ({ durationMs, length }) => {
+        void recordError(
+          'perf.live-scan',
+          new Error(`scan took ${durationMs.toFixed(0)}ms on ${length} chars`),
+        );
+      },
       onRiskChange: (risk) => {
         const composer = adapter.getComposer();
         const text = composer ? adapter.getText(composer) : '';
@@ -395,6 +555,9 @@ export default defineContentScript({
       clearTimeout(clarifyTimer);
       stopClarifyWatch();
       clarifyStore.cancel();
+      healthMonitor.stop();
+      healthObserver.disconnect();
+      if (recheckTimer !== undefined) clearTimeout(recheckTimer);
       stopObserving();
       stopWatchingSettings();
       ui.remove();

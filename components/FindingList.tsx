@@ -19,11 +19,30 @@ interface Props {
   store: PanelStore;
 }
 
+/**
+ * Most rows to render.
+ *
+ * The remaining freeze risk after redaction was made linear. Someone who pastes
+ * a leaked credentials dump — the exact person this product is for — can
+ * produce thousands of distinct findings, and a row each would build thousands
+ * of DOM nodes inside a synchronous render.
+ *
+ * Capping the *display* costs nothing real: every finding is still detected and
+ * still redacted, and the toggles exist for the case where a user disagrees
+ * about one or two values. Nobody audits five thousand checkboxes. The count is
+ * shown so the cap is visible rather than silent — a list that quietly stopped
+ * at 200 would misrepresent what is about to be sent.
+ */
+const MAX_ROWS = 200;
+
 export function FindingList({ state, store }: Props) {
   const rows = toRows(state.submission, state.selection, maskValue);
   const blocking = rows.filter((row) => row.tier === 'high');
   const advisory = rows.filter((row) => row.tier === 'low');
   const busy = state.phase === 'applying';
+
+  const shownBlocking = blocking.slice(0, MAX_ROWS);
+  const hiddenBlocking = blocking.length - shownBlocking.length;
 
   // Advisory items start collapsed. They are suggestions, and letting a list
   // of email addresses push the actual credentials off screen would invert
@@ -33,10 +52,21 @@ export function FindingList({ state, store }: Props) {
   return (
     <div className="mt-3" data-testid="apa-finding-list">
       <ul className="space-y-1">
-        {blocking.map((row) => (
+        {shownBlocking.map((row) => (
           <Row key={row.placeholder} row={row} store={store} busy={busy} />
         ))}
       </ul>
+
+      {hiddenBlocking > 0 && (
+        <p
+          data-testid="apa-rows-capped"
+          className="mt-2 text-xs"
+          style={{ color: 'var(--apa-muted)' }}
+        >
+          …and {hiddenBlocking} more. All of them will be replaced — only the list
+          is shortened.
+        </p>
+      )}
 
       {advisory.length > 0 && (
         <div className="mt-2">

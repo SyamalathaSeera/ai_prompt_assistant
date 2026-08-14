@@ -2,7 +2,7 @@
   "name": "ai-prompt-assistant",
   "description": "Detects and redacts secrets and sensitive data in AI chat prompts before they are sent. Runs entirely on-device.",
   "private": true,
-  "version": "0.4.0.4",
+  "version": "0.5.0.4",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -20,10 +20,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:lib": "vitest run --project lib",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
+    "e2e:report": "playwright show-report",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.62.1",
     "@preact/preset-vite": "^2.10.6",
     "@tailwindcss/vite": "^4.3.3",
     "eslint": "^9.39.5",

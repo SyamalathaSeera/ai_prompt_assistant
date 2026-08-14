@@ -1,5 +1,6 @@
 import { byLargest, bySelector, byVisibleSelector, resolveWithFallback } from './resolve';
 import { readBlockEditorText, writeBlockEditorText } from './block-editor';
+import { HEURISTIC_COMPOSER_STRATEGIES } from './heuristic';
 import type {
   AdapterHealth,
   Disposer,
@@ -46,6 +47,9 @@ const COMPOSER_STRATEGIES = [
   // Largest wins over the 0×1 clipboard element on size alone.
   byLargest('largest-editable', '[contenteditable="true"]:not(.ql-clipboard)'),
   byVisibleSelector('visible-textarea', 'textarea:not([disabled])'),
+  // Platform-agnostic recovery, after everything that names gemini.google.com
+  // has failed. Reaching these reports as `degraded`, never healthy.
+  ...HEURISTIC_COMPOSER_STRATEGIES,
 ];
 
 /**

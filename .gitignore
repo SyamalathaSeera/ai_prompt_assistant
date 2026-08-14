@@ -37,3 +37,9 @@ coverage/
 
 # session state (terminal-scoped, machine-specific paths)
 .claude-sessions/
+
+# playwright artefacts
+test-results/
+playwright-report/
+blob-report/
+.playwright/

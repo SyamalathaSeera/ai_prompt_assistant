@@ -1,7 +1,7 @@
 ﻿# TASKS.md: AI Prompt Assistant Milestone Tracker
 
 **Last Updated**: 2026-08-14
-**Current Version**: 0.4.0.4
+**Current Version**: 0.5.0.4
 
 ---
 
@@ -19,6 +19,7 @@
 | [0.2.0.0](./tasks/Milestone0.2.0.0.md) | Complete | 2026-08-13 | 6/6 | On-device model foundation |
 | [0.3.0.0](./tasks/Milestone0.3.0.0.md) | Complete | 2026-08-13 | 6/6 | Prompt refinement |
 | [0.4.0.0](./tasks/Milestone0.4.0.0.md) | Complete | 2026-08-14 | 5/5 | Clarify with context |
+| [0.5.0.0](./tasks/Milestone0.5.0.0.md) | Complete | 2026-08-14 | 5/5 | Hardening, resilience, performance, e2e |
 
 ---
 
@@ -26,7 +27,7 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| _(none)_ | — | — | Run `/milestone-start 0.5.0.0` to begin the next one |
+| _(none)_ | — | — | Run `/milestone-start 0.6.0.0` to begin the next one |
 
 ---
 
@@ -34,7 +35,6 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.5.0.0](./tasks/Milestone0.5.0.0.md) | Planning | HIGH | Hardening, resilience, performance, e2e, a11y |
 | [0.6.0.0](./tasks/Milestone0.6.0.0.md) | Planning | HIGH | Onboarding and first-run experience |
 | [0.9.0.0](./tasks/Milestone0.9.0.0.md) | Planning | HIGH | Beta: unlisted store deploy + real-user testing |
 | [1.0.0.0](./tasks/Milestone1.0.0.0.md) | Planning | CRITICAL | Public Chrome Web Store launch |
@@ -48,6 +48,15 @@ redaction (done), prompt refinement, and clarify-with-context. Extensions 2 and 
 (chat-to-project, chat organiser) remain separate products for later, with their own
 repos and listings â€” they need broad permissions that would wreck this one's
 narrow-install pitch.
+
+**Remote selector config is deferred past 1.0 (2026-08-14).** Milestone 0.5.0.0 Task 2
+would have fetched a signed selector map to fix host DOM breakage without a store
+review. It is shelved because the "no network requests" claim is now *mechanically
+enforced* — the built bundle contains no network transport and `test/no-network.test.ts`
+proves it — and Task 1's adapter self-healing already addresses the same failure without
+touching that. The cost is accepted: recovery from a DOM change is slower. Revisit only
+on beta data showing breakage frequent enough to cost users real protection. Full
+reasoning in the milestone file.
 
 **Refinement runs on-device.** Chrome's built-in Prompt API was verified available on
 the developer's machine (`window.LanguageModel`, availability `downloadable`), so model
