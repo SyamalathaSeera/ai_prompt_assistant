@@ -9,6 +9,8 @@ import {
   type Platform,
 } from '@/lib/adapters/platforms';
 import { deleteAllData, getSettings, setSettings } from '@/lib/storage';
+import { ensureSession, getModelFeatures, type ModelFeatures } from '@/lib/model';
+import { STYLES, type RefinementStyle } from '@/lib/refine';
 import { removeFromAllowlist } from '@/lib/policy/allowlist';
 import type { Settings } from '@/lib/policy/schema';
 
@@ -174,6 +176,126 @@ function PlatformRow({ platform }: { platform: Platform }) {
   );
 }
 
+/**
+ * Prompt improvement.
+ *
+ * The button in the composer is hidden on hardware that cannot run a model, so
+ * this section is where its absence is explained. Without it, a user whose
+ * browser lacks the model sees a feature described everywhere else and simply
+ * missing from their screen.
+ *
+ * It is also the only place the one-time download can be started. `run()`
+ * deliberately never triggers it — a hundreds-of-megabytes download is not
+ * something a keystroke should start on a metered connection — so without a
+ * control here the "needs downloading" state would be a dead end.
+ */
+function ImprovementSection({
+  settings,
+  update,
+}: {
+  settings: Settings;
+  update: (patch: Partial<Settings>) => Promise<void>;
+}) {
+  const [features, setFeatures] = useState<ModelFeatures | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [downloadFailed, setDownloadFailed] = useState(false);
+
+  const refresh = useCallback(() => {
+    void getModelFeatures().then(setFeatures);
+  }, []);
+
+  useEffect(refresh, [refresh]);
+
+  // Called straight from the click, not after an await: Chrome requires user
+  // activation to start a model download, and awaiting first loses it.
+  const download = () => {
+    setDownloadFailed(false);
+    setProgress(0);
+
+    void ensureSession(({ loaded }) => setProgress(loaded)).then((session) => {
+      setProgress(null);
+      if (!session) setDownloadFailed(true);
+      refresh();
+    });
+  };
+
+  if (!features) return null;
+
+  return (
+    <Section
+      title="Prompt improvement"
+      hint="Rewrites a rough prompt into a clearer one. It runs on this device, and your prompt is redacted before the model sees it."
+    >
+      {!features.showModelFeatures && (
+        <p className="text-sm opacity-70" data-testid="model-unavailable">
+          {features.explanation}
+        </p>
+      )}
+
+      {features.showModelFeatures && (
+        <div className="grid gap-3">
+          <label className="grid gap-1 rounded-lg border border-current/10 p-3">
+            <span className="text-sm">Improve prompts by default</span>
+            <span className="text-xs opacity-60">
+              You can pick a different one for a single prompt from the composer.
+            </span>
+            <select
+              data-testid="setting-refine-style"
+              className="mt-1 rounded-md border border-current/20 bg-transparent p-1.5 text-sm"
+              value={settings.refineStyle}
+              onChange={(event) =>
+                void update({
+                  refineStyle: (event.currentTarget as HTMLSelectElement)
+                    .value as RefinementStyle,
+                })
+              }
+            >
+              {STYLES.map((style) => (
+                <option key={style.id} value={style.id}>
+                  {style.label} — {style.description}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <p className="text-xs opacity-60" data-testid="model-shortcut">
+            Keyboard shortcut: Alt+Shift+I. Change it at chrome://extensions/shortcuts.
+          </p>
+
+          {features.needsDownload && (
+            <div className="rounded-lg border border-current/10 p-3">
+              <p className="text-sm">{features.explanation}</p>
+              <button
+                type="button"
+                data-testid="model-download"
+                disabled={progress !== null}
+                onClick={download}
+                className="mt-2 rounded-md border border-current/20 px-3 py-1.5 text-sm disabled:opacity-60"
+              >
+                {progress === null
+                  ? 'Download the model'
+                  : `Downloading… ${Math.round(progress * 100)}%`}
+              </button>
+              {downloadFailed && (
+                <p className="mt-2 text-xs" data-testid="model-download-failed">
+                  The download did not finish. Everything else still works — secrets are
+                  detected and redacted without it.
+                </p>
+              )}
+            </div>
+          )}
+
+          {features.capability.availability === 'downloading' && (
+            <p className="text-xs opacity-60" data-testid="model-downloading">
+              {features.explanation}
+            </p>
+          )}
+        </div>
+      )}
+    </Section>
+  );
+}
+
 function Options() {
   const [settings, setLocal] = useState<Settings | null>(null);
   const [deleted, setDeleted] = useState(false);
@@ -252,6 +374,8 @@ function Options() {
           />
         </div>
       </Section>
+
+      <ImprovementSection settings={settings} update={update} />
 
       <Section
         title="What to look for"

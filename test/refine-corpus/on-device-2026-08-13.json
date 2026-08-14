@@ -1,0 +1,200 @@
+{
+ "recordedAt": "2026-08-13",
+ "device": "Windows 11, Chrome 150",
+ "model": "Chrome built-in Prompt API (window.LanguageModel), availability: available",
+ "method": "The prompt built by buildRefinementPrompt, run against the real on-device model in a page context. Drafts are the redacted text the pipeline would send, so with-secret carries a real placeholder.",
+ "runs": [
+  {
+   "id": "vague-bug",
+   "style": "clear",
+   "ms": 3182,
+   "draft": "fix the login bug",
+   "output": "Correct the login bug."
+  },
+  {
+   "id": "vague-bug",
+   "style": "technical",
+   "ms": 4804,
+   "draft": "fix the login bug",
+   "output": "Resolve the login bug. Expected output: corrected login functionality."
+  },
+  {
+   "id": "rambling-feature",
+   "style": "clear",
+   "ms": 8399,
+   "draft": "so i need to add a way for users to export their data, maybe csv or json, not sure which, and it should probably be async because there could be a lot of rows, anyway how would you do this",
+   "output": "Implement user data export functionality. Consider CSV or JSON formats. The export process should be asynchronous to handle large datasets. How should this be implemented?"
+  },
+  {
+   "id": "rambling-feature",
+   "style": "concise",
+   "ms": 5718,
+   "draft": "so i need to add a way for users to export their data, maybe csv or json, not sure which, and it should probably be async because there could be a lot of rows, anyway how would you do this",
+   "output": "Add user data export (CSV or JSON). Implement asynchronously for large datasets. How?"
+  },
+  {
+   "id": "rambling-feature",
+   "style": "technical",
+   "ms": 7797,
+   "draft": "so i need to add a way for users to export their data, maybe csv or json, not sure which, and it should probably be async because there could be a lot of rows, anyway how would you do this",
+   "output": "Implement user data export. Formats: CSV or JSON. Ensure asynchronous processing for large datasets. What is the implementation approach?"
+  },
+  {
+   "id": "no-context-question",
+   "style": "clear",
+   "ms": 3261,
+   "draft": "why is it slow",
+   "output": "Investigate performance bottleneck."
+  },
+  {
+   "id": "padded-request",
+   "style": "concise",
+   "ms": 4125,
+   "draft": "Hi there! I was wondering if you could possibly help me out with something, if it is not too much trouble. I would really like to understand how caching works in general, at a high level, if that makes sense. Thank you so much!",
+   "output": "Explain caching concepts at a high level."
+  },
+  {
+   "id": "padded-request",
+   "style": "beginner",
+   "ms": 4495,
+   "draft": "Hi there! I was wondering if you could possibly help me out with something, if it is not too much trouble. I would really like to understand how caching works in general, at a high level, if that makes sense. Thank you so much!",
+   "output": "Explain how caching works. Assume no prior knowledge."
+  },
+  {
+   "id": "multi-part",
+   "style": "clear",
+   "ms": 5616,
+   "draft": "review this function and tell me if the error handling is right and also whether the naming is consistent with the rest and if there is a simpler way",
+   "output": "Review this function. Evaluate error handling, naming consistency, and potential simplification."
+  },
+  {
+   "id": "multi-part",
+   "style": "detailed",
+   "ms": 10321,
+   "draft": "review this function and tell me if the error handling is right and also whether the naming is consistent with the rest and if there is a simpler way",
+   "output": "Analyze this function. Report on: 1. Correctness of error handling. 2. Consistency of naming conventions with surrounding code. 3. Potential for simplification. Please provide a concise summary."
+  },
+  {
+   "id": "jargon-heavy",
+   "style": "beginner",
+   "ms": 7339,
+   "draft": "explain event loop microtask queue vs macrotask and why my promise resolves late",
+   "output": "Explain the event loop, microtask queue, and macrotask. Describe how these concepts relate to why a promise resolves late."
+  },
+  {
+   "id": "jargon-heavy",
+   "style": "technical",
+   "ms": 9419,
+   "draft": "explain event loop microtask queue vs macrotask and why my promise resolves late",
+   "output": "Describe event loop, microtask queue, and macrotask. Explain why a promise resolution may be delayed. Output: definitions and explanation of the relationship between these concepts and promise resolution timing."
+  },
+  {
+   "id": "terse-imperative",
+   "style": "clear",
+   "ms": 4084,
+   "draft": "summarise this in bullets",
+   "output": "Summarize the following text in bullet points."
+  },
+  {
+   "id": "terse-imperative",
+   "style": "detailed",
+   "ms": 4572,
+   "draft": "summarise this in bullets",
+   "output": "Create a bullet-point summary of the following text."
+  },
+  {
+   "id": "with-secret",
+   "style": "clear",
+   "ms": 10562,
+   "draft": "my deploy keeps failing with AWS_ACCESS_KEY_ID=[REDACTED_AWS_ACCESS_KEY_ID_1] in the env, what should i check first",
+   "output": "Troubleshoot deployment failures. The error involves AWS_ACCESS_KEY_ID=[REDACTED_AWS_ACCESS_KEY_ID_1] in the environment. What is the first thing to check?"
+  },
+  {
+   "id": "with-secret",
+   "style": "technical",
+   "ms": 10110,
+   "draft": "my deploy keeps failing with AWS_ACCESS_KEY_ID=[REDACTED_AWS_ACCESS_KEY_ID_1] in the env, what should i check first",
+   "output": "Diagnose deployment failure. The error message includes AWS_ACCESS_KEY_ID=[REDACTED_AWS_ACCESS_KEY_ID_1] in the environment. What is the initial troubleshooting step?"
+  },
+  {
+   "id": "question-not-answer",
+   "style": "clear",
+   "ms": 3963,
+   "draft": "what is the difference between a mutex and a semaphore",
+   "output": "Explain the difference between a mutex and a semaphore."
+  },
+  {
+   "id": "question-not-answer",
+   "style": "beginner",
+   "ms": 4256,
+   "draft": "what is the difference between a mutex and a semaphore",
+   "output": "Describe the distinction between a mutex and a semaphore."
+  },
+  {
+   "id": "constraint-bearing",
+   "style": "clear",
+   "ms": 7472,
+   "draft": "write a function that does not use recursion and does not allocate, must be under 20 lines, to flatten a nested list",
+   "output": "Create a function to flatten a nested list without recursion or allocation. The function must be under 20 lines."
+  },
+  {
+   "id": "constraint-bearing",
+   "style": "concise",
+   "ms": 7245,
+   "draft": "write a function that does not use recursion and does not allocate, must be under 20 lines, to flatten a nested list",
+   "output": "Implement a function to flatten a nested list. Requirements: no recursion, no allocation, under 20 lines."
+  },
+  {
+   "id": "constraint-bearing",
+   "style": "technical",
+   "ms": 7269,
+   "draft": "write a function that does not use recursion and does not allocate, must be under 20 lines, to flatten a nested list",
+   "output": "Develop a function to flatten a nested list. Constraints: no recursion, no dynamic allocation, line limit of 20."
+  }
+ ],
+ "holdoutNote": "A second run on drafts written after the gate was built, so its thresholds could not have been fitted to them. The 50s outlier is recorded as observed: it coincided with the tooling losing its connection to the page mid-call, so it is confounded — but a tail that long is exactly why the timeout is generous and the button cancels.",
+ "holdout": [
+  {
+   "id": "sql-duplicates",
+   "style": "clear",
+   "ms": 50413,
+   "draft": "can you look at my sql and tell me why the join returns duplicates",
+   "output": "Analyze this SQL query for duplicate join results."
+  },
+  {
+   "id": "tests-no-mocks",
+   "style": "technical",
+   "ms": 6829,
+   "draft": "need help writing tests for this, dont use mocks, and keep them readable",
+   "output": "Develop test cases for this code. Requirements: no mocks should be used, and tests should be easily understandable."
+  },
+  {
+   "id": "learn-rust",
+   "style": "beginner",
+   "ms": 7346,
+   "draft": "whats the best way to learn rust coming from python",
+   "output": "What is the most effective learning path for Rust, given existing Python programming experience?"
+  },
+  {
+   "id": "vague-doc",
+   "style": "detailed",
+   "ms": 11569,
+   "draft": "make this doc better",
+   "output": "Enhance the quality of this documentation. Please specify desired improvements (e.g., clarity, completeness, formatting)."
+  },
+  {
+   "id": "rapid-click-crash",
+   "style": "concise",
+   "ms": 5132,
+   "draft": "so basically the thing keeps crashing when i click the button twice really fast, any ideas at all would be great honestly",
+   "output": "The button crashes on rapid clicks. What potential causes should be investigated?"
+  },
+  {
+   "id": "compare-approaches",
+   "style": "clear",
+   "ms": 5086,
+   "draft": "compare the two approaches and recommend one, i care most about maintainability not speed",
+   "output": "Evaluate two approaches and recommend one, prioritizing maintainability over speed."
+  }
+ ]
+}

@@ -1,7 +1,7 @@
 ﻿# TASKS.md: AI Prompt Assistant Milestone Tracker
 
 **Last Updated**: 2026-08-13
-**Current Version**: 0.2.0.5
+**Current Version**: 0.3.0.5
 
 ---
 
@@ -17,6 +17,7 @@
 | [0.0.6.0](./tasks/Milestone0.0.6.0.md) | Complete | 2026-08-13 | 5/5 | Settings, allowlist, popup + options page |
 | [0.1.0.0](./tasks/Milestone0.1.0.0.md) | Complete | 2026-08-13 | 5/5 | Multi-platform adapters (Claude, Gemini) |
 | [0.2.0.0](./tasks/Milestone0.2.0.0.md) | Complete | 2026-08-13 | 6/6 | On-device model foundation |
+| [0.3.0.0](./tasks/Milestone0.3.0.0.md) | Complete | 2026-08-13 | 6/6 | Prompt refinement |
 
 ---
 
@@ -24,7 +25,7 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.3.0.0](./tasks/Milestone0.3.0.0.md) | Ready | HIGH | Prompt refinement |
+| [0.4.0.0](./tasks/Milestone0.4.0.0.md) | Ready | MEDIUM | Clarify with context |
 
 ---
 
@@ -32,7 +33,6 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.4.0.0](./tasks/Milestone0.4.0.0.md) | Planning | MEDIUM | Clarify with context |
 | [0.5.0.0](./tasks/Milestone0.5.0.0.md) | Planning | HIGH | Hardening, resilience, performance, e2e, a11y |
 | [0.6.0.0](./tasks/Milestone0.6.0.0.md) | Planning | HIGH | Onboarding and first-run experience |
 | [0.9.0.0](./tasks/Milestone0.9.0.0.md) | Planning | HIGH | Beta: unlisted store deploy + real-user testing |

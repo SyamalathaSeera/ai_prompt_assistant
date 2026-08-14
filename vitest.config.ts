@@ -57,6 +57,9 @@ export default defineConfig({
             // The model layer probes browser globals, so it belongs with the
             // browser-dependent code rather than the pure `lib` project.
             'lib/model/**/*.test.ts',
+            'lib/refine/**/*.test.ts',
+            // Messaging is a thin wrapper over the extension APIs.
+            'lib/messaging.test.ts',
             'components/**/*.test.{ts,tsx}',
             'entrypoints/**/*.test.{ts,tsx}',
           ],

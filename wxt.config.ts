@@ -53,6 +53,26 @@ export default defineConfig({
     // in options (milestone 0.1.0.0), never up front.
     optional_host_permissions: ['https://claude.ai/*', 'https://gemini.google.com/*'],
 
+    /**
+     * The refinement shortcut.
+     *
+     * Declared as a browser command rather than a `keydown` listener in the
+     * content script for two reasons. Chrome lets the user rebind it at
+     * chrome://extensions/shortcuts, and it refuses to register a binding that
+     * collides with the browser's own — neither of which we could offer by
+     * listening on the page. It also cannot fire while the user is typing into
+     * some other application's editor, which a document-level listener would.
+     *
+     * Alt rather than Ctrl+Shift: Ctrl+Shift+I is devtools, and most of the
+     * remaining Ctrl+Shift space is taken by the host pages themselves.
+     */
+    commands: {
+      'refine-prompt': {
+        suggested_key: { default: 'Alt+Shift+I', mac: 'Alt+Shift+I' },
+        description: 'Improve the prompt in the composer',
+      },
+    },
+
     // NOTE: action.default_title is NOT set here. WXT derives it from the
     // <title> of entrypoints/popup/index.html and overrides anything set in
     // this block. Change the title there instead.

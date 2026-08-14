@@ -26,9 +26,9 @@ No backend, no server, no telemetry.
 
 ## Current Status
 
-**Phase**: Milestone 0.3.0.0, Prompt Refinement
+**Phase**: Milestone 0.4.0.0, Clarify With Context
 **Last Updated**: 2026-08-13
-**Version**: 0.2.0.5
+**Version**: 0.3.0.5
 
 ### Completed Milestones
 - **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind
@@ -77,14 +77,20 @@ No backend, no server, no telemetry.
   transport at all, so "nothing leaves this device" is literally true and now enforced
   by `test/no-network.test.ts`. Removing model support entirely would break nothing.
 
+- **0.3.0.0** (2026-08-13): Prompt refinement. 971 tests. The full loop ships: an
+  explicit button and a rebindable `Alt+Shift+I` command, redact → model → validate →
+  restore, and a word diff the user accepts, edits, or discards. **The bar is executable** —
+  `evaluate.ts` refuses a rewrite that lost the user's meaning, invented a specific, or
+  answered the prompt instead of rewriting it. **Measured against the real on-device model**
+  (27 refinements, recorded in `test/refine-corpus/`): median 5.7s, p90 10.1s, zero
+  fabrications, zero damaged placeholders. Measurement corrected two things a corpus could
+  not have — an 8s timeout that would have killed a quarter of successful rewrites, and a
+  length floor that refused good compressions of rambling drafts.
+
 ### Active Milestone
-- **Milestone 0.3.0.0**: Prompt refinement
+- **Milestone 0.4.0.0**: Clarify with context
 
 ### Planned Next
-- **0.1.0.0**: Claude + Gemini adapters
-- **0.2.0.0**: On-device model foundation (Chrome Prompt API)
-- **0.3.0.0**: Prompt refinement
-- **0.4.0.0**: Clarify with context
 - **0.5.0.0**: Hardening, e2e, performance
 - **0.6.0.0**: Onboarding
 - **0.9.0.0** → **1.0.0.0**: Beta, then public launch
