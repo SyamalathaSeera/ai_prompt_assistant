@@ -1,5 +1,9 @@
+import { STYLES } from '../refine/prompt';
 import { DEFAULT_SETTINGS, SCHEMA_VERSION } from './defaults';
-import type { AllowlistEntry, Settings } from './schema';
+import type { AllowlistEntry, RefinementStyle, Settings } from './schema';
+
+/** Style ids, taken from the definitions so the two cannot drift. */
+const STYLE_IDS = STYLES.map((style) => style.id) as readonly RefinementStyle[];
 
 /**
  * Settings migration.
@@ -134,6 +138,9 @@ export function coerceSettings(stored: unknown): Settings {
     // stores an empty list, which must not be mistaken for "unset" and
     // replaced with the defaults.
     disabledRuleIds: stringArray(stored.disabledRuleIds, []),
+    // Additive in a later build, so settings stored before it exists simply
+    // fall back to the default — no schema step, nothing lost.
+    refineStyle: oneOf(stored.refineStyle, STYLE_IDS, DEFAULT_SETTINGS.refineStyle),
     allowlist: allowlistEntries(stored.allowlist),
     pausedHosts: stringArray(stored.pausedHosts, []),
     pausedUntil:

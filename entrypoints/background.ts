@@ -1,4 +1,5 @@
 import { syncRegistrations } from '@/lib/adapters/platforms';
+import { dispatchRefineToActiveTab, REFINE_COMMAND } from '@/lib/messaging';
 
 export default defineBackground(() => {
   /**
@@ -46,4 +47,17 @@ export default defineBackground(() => {
    */
   browser.permissions.onRemoved?.addListener(() => void syncRegistrations());
   browser.permissions.onAdded?.addListener(() => void syncRegistrations());
+
+  /**
+   * The refinement shortcut.
+   *
+   * Commands are delivered here and nowhere else, so the background worker
+   * forwards it to the tab in front of the user. It carries no text: the
+   * content script reads the composer itself, and the prompt never travels
+   * through the worker.
+   */
+  browser.commands?.onCommand.addListener((command) => {
+    if (command !== REFINE_COMMAND) return;
+    void dispatchRefineToActiveTab();
+  });
 });

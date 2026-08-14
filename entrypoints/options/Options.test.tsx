@@ -4,6 +4,7 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import Options from './Options';
 import { ALL_RULES } from '@/lib/detector/rules';
 import { __resetCacheForTests, getSettings, recordCatch, setSettings } from '@/lib/storage';
+import { __resetForTests as __resetSessionForTests } from '@/lib/model/session';
 import { put } from '@/lib/vault';
 
 let container: HTMLElement;
@@ -283,5 +284,105 @@ describe('privacy section', () => {
     await waitFor(() =>
       expect(($('setting-enabled') as HTMLInputElement).checked).toBe(true),
     );
+  });
+});
+
+describe('prompt improvement', () => {
+  /** Stands in for Chrome's Prompt API at a chosen availability. */
+  function installModel(
+    availability: string,
+    create: () => Promise<unknown> = async () => ({
+      prompt: async () => '',
+      destroy: () => {},
+    }),
+  ) {
+    vi.stubGlobal('LanguageModel', { availability: async () => availability, create });
+  }
+
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    __resetSessionForTests();
+  });
+
+  it('explains the absence rather than hiding the feature silently', async () => {
+    // The composer button is hidden on hardware that cannot run a model, so
+    // this is the only place that absence is accounted for.
+    mount();
+    await ready();
+
+    await waitFor(() => expect($('model-unavailable')).not.toBeNull());
+    expect($('model-unavailable')!.textContent).toContain('does not');
+    expect($('setting-refine-style')).toBeNull();
+  });
+
+  it('says redaction still works without a model', async () => {
+    mount();
+    await ready();
+
+    await waitFor(() => expect($('model-unavailable')).not.toBeNull());
+    expect($('model-unavailable')!.textContent).toContain('redacted');
+  });
+
+  it('offers the style choice when a model is available', async () => {
+    installModel('available');
+    mount();
+    await ready();
+
+    await waitFor(() => expect($('setting-refine-style')).not.toBeNull());
+    expect($('model-unavailable')).toBeNull();
+  });
+
+  it('persists the chosen style', async () => {
+    installModel('available');
+    mount();
+    await ready();
+    await waitFor(() => expect($('setting-refine-style')).not.toBeNull());
+
+    const select = $('setting-refine-style') as HTMLSelectElement;
+    select.value = 'concise';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await waitFor(async () => expect((await getSettings()).refineStyle).toBe('concise'));
+  });
+
+  it('tells the user the shortcut and how to change it', async () => {
+    installModel('available');
+    mount();
+    await ready();
+
+    await waitFor(() => expect($('model-shortcut')).not.toBeNull());
+    expect($('model-shortcut')!.textContent).toContain('chrome://extensions/shortcuts');
+  });
+
+  it('offers the one-time download rather than leaving a dead end', async () => {
+    // `run()` never starts the download itself, so without this control the
+    // "needs downloading" state could never be left.
+    installModel('downloadable');
+    mount();
+    await ready();
+
+    await waitFor(() => expect($('model-download')).not.toBeNull());
+    expect($('model-download')!.textContent).toContain('Download');
+  });
+
+  it('reports a failed download without alarming the user', async () => {
+    installModel('downloadable', () => Promise.reject(new Error('declined')));
+    mount();
+    await ready();
+    await waitFor(() => expect($('model-download')).not.toBeNull());
+
+    $('model-download')!.click();
+
+    await waitFor(() => expect($('model-download-failed')).not.toBeNull());
+    expect($('model-download-failed')!.textContent).toContain('still works');
+  });
+
+  it('offers no download when the model is already there', async () => {
+    installModel('available');
+    mount();
+    await ready();
+
+    await waitFor(() => expect($('setting-refine-style')).not.toBeNull());
+    expect($('model-download')).toBeNull();
   });
 });

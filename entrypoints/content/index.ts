@@ -3,6 +3,8 @@ import { h, render } from 'preact';
 import { detectTheme, observeTheme } from '@/components/theme';
 import { createPanelStore } from '@/components/panel-store';
 import { createRiskStore } from '@/components/risk-store';
+import { createRefineStore } from '@/components/refine-store';
+import { getModelFeatures } from '@/lib/model';
 import { Panel } from '@/components/Panel';
 import { resolveAdapter } from '@/lib/adapters/registry';
 import { createInterceptor } from '@/lib/interception/controller';
@@ -12,6 +14,8 @@ import { detect, redact } from '@/lib/detector/engine';
 import { findPlaceholders, hydrate, needsHydration } from '@/lib/rehydrate';
 import { putAll, resolve as resolveFromVault } from '@/lib/vault';
 import { getSettingsSync, initSettings, recordCatch, setSettings } from '@/lib/storage';
+import { isRefineMessage } from '@/lib/messaging';
+import { browser } from 'wxt/browser';
 import { addToAllowlist, filterAllowlisted } from '@/lib/policy/allowlist';
 import type { Finding } from '@/lib/detector/types';
 import './style.css';
@@ -43,6 +47,32 @@ export default defineContentScript({
     if (!adapter) return;
 
     console.log(`[APA] content script active v${__APP_VERSION__}`);
+
+    /**
+     * Whether to offer refinement at all.
+     *
+     * Derived from hardware, not settings. Read once at startup: a machine
+     * either has the capability or it does not, and re-probing on every render
+     * would be waste. If a model finishes downloading mid-session the button
+     * appears on the next page load, which is an acceptable delay for a
+     * once-ever event.
+     */
+    const refineAvailable = (await getModelFeatures()).showModelFeatures;
+
+    /**
+     * Settings, read synchronously.
+     *
+     * The interception path cannot await storage — `detect()` is synchronous
+     * by design (ADR-004), and an async submit handler would mean the prompt
+     * is already gone by the time settings arrive. So settings are loaded into
+     * a cache and refreshed on change.
+     *
+     * Loaded here, before anything reads them: the refine store seeds its
+     * remembered style at construction, and a cache that had not filled yet
+     * would hand it the default and make the preference look unsaved.
+     */
+    const getSettings = getSettingsSync;
+    const stopWatchingSettings = await initSettings();
 
     const store = createPanelStore({
       /**
@@ -96,6 +126,32 @@ export default defineContentScript({
       }
     };
 
+    /**
+     * Prompt refinement.
+     *
+     * `applyToComposer` writes text and does NOT submit — the user asked for a
+     * better prompt, not for it to be sent. Detection settings are shared with
+     * sending, so refinement redacts exactly what a submission would.
+     */
+    const refineStore = createRefineStore({
+      getDraft: () => {
+        const composer = adapter.getComposer();
+        return composer ? adapter.getText(composer) : '';
+      },
+      applyToComposer: (text) => {
+        const composer = adapter.getComposer();
+        if (composer) adapter.setText(composer, text);
+      },
+      getDisabledRuleIds: () => getSettings().disabledRuleIds,
+      // The style choice is a habit, not a per-prompt decision.
+      initialStyle: getSettingsSync().refineStyle,
+      onStyleChange: (refineStyle) => {
+        void setSettings({ refineStyle }).catch(() => {
+          /* an unremembered preference is not worth reporting */
+        });
+      },
+    });
+
     const riskStore = createRiskStore({
       // Rewrites the composer without submitting, so the user can clean up a
       // draft on their own initiative rather than only when interrupted.
@@ -138,7 +194,9 @@ export default defineContentScript({
           h(Panel, {
             store,
             riskStore,
+            refineStore,
             getComposer: () => adapter.getComposer(),
+            refineAvailable,
           }),
           container,
         );
@@ -156,17 +214,6 @@ export default defineContentScript({
     });
 
     ui.mount();
-
-    /**
-     * Settings, read synchronously.
-     *
-     * The interception path cannot await storage — `detect()` is synchronous
-     * by design (ADR-004), and an async submit handler would mean the prompt
-     * is already gone by the time settings arrive. So settings are loaded into
-     * a cache and refreshed on change.
-     */
-    const getSettings = getSettingsSync;
-    const stopWatchingSettings = await initSettings();
 
     /**
      * Suppresses allowlisted values.
@@ -255,6 +302,20 @@ export default defineContentScript({
       },
     });
 
+    /**
+     * The keyboard shortcut.
+     *
+     * Declared as a browser command and forwarded by the background worker, so
+     * the user can rebind it at chrome://extensions/shortcuts and Chrome
+     * refuses bindings that collide with its own. Still an explicit
+     * invocation — the same action as pressing the button.
+     */
+    const onCommandMessage = (message: unknown) => {
+      if (!isRefineMessage(message)) return;
+      void refineStore.start();
+    };
+    browser.runtime.onMessage.addListener(onCommandMessage);
+
     const stopPasteWatch = createPasteWatcher({
       adapter,
       getSettings,
@@ -265,6 +326,7 @@ export default defineContentScript({
     });
 
     ctx.onInvalidated(() => {
+      browser.runtime.onMessage.removeListener(onCommandMessage);
       stopIntercepting();
       stopLiveScan();
       stopPasteWatch();

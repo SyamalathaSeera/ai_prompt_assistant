@@ -1,4 +1,5 @@
 import { DEFAULT_DISABLED_RULE_IDS } from '../detector/rules';
+import { DEFAULT_STYLE } from '../refine/prompt';
 import type { Counters, Settings } from './schema';
 
 /**
@@ -29,6 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // Sourced from the rule definitions themselves so the default experience
   // and the rules cannot drift apart.
   disabledRuleIds: [...DEFAULT_DISABLED_RULE_IDS],
+  refineStyle: DEFAULT_STYLE,
   allowlist: [],
   pausedHosts: [],
   pausedUntil: null,

@@ -9,8 +9,11 @@
 // Defined in the detector, which owns placeholder shape. Re-exported here so
 // settings consumers have one import for the settings vocabulary.
 import type { PlaceholderStyle } from '../detector/types';
+// Type-only, so this adds no runtime dependency on the refinement code — the
+// settings path must stay loadable without touching the model layer.
+import type { RefinementStyle } from '../refine/prompt';
 
-export type { PlaceholderStyle };
+export type { PlaceholderStyle, RefinementStyle };
 
 export type HighTierBehavior = 'block' | 'warn';
 
@@ -49,6 +52,15 @@ export interface Settings {
 
   /** Rule ids the user has turned off. */
   disabledRuleIds: string[];
+
+  /**
+   * Which refinement style the user last chose.
+   *
+   * Remembered because the choice is a habit, not a per-prompt decision:
+   * someone who always wants their prompts shorter should not have to say so
+   * every time.
+   */
+  refineStyle: RefinementStyle;
 
   /**
    * Values the user has told us never to flag again.
