@@ -1,0 +1,26 @@
+/*
+ * The welcome page borrows the injected UI's stylesheet wholesale.
+ *
+ * Not for convenience — for honesty. The demo on this page renders the REAL
+ * approval modal, and it has to look exactly like the one the user will meet on
+ * chatgpt.com in a minute's time. A second set of tokens here would drift, and
+ * the first thing the user saw would stop matching the thing they were promised.
+ *
+ * `:host` rules inside it match nothing in a normal document, so importing a
+ * shadow-DOM stylesheet into a page costs only the selectors that never apply.
+ * The design tokens keep exactly one definition, which is what
+ * components/contrast.test.ts asserts against.
+ */
+@import '../content/style.css';
+
+:root {
+  color-scheme: light dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+  background: var(--apa-bg);
+  color: var(--apa-fg);
+}

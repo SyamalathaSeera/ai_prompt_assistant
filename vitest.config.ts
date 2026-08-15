@@ -69,6 +69,8 @@ export default defineConfig({
             'lib/storage/**/*.test.ts',
             // The error log writes to chrome.storage.
             'lib/errors/**/*.test.ts',
+            // The badge talks to chrome.action and chrome.storage.
+            'lib/badge/**/*.test.ts',
             // The model layer probes browser globals, so it belongs with the
             // browser-dependent code rather than the pure `lib` project.
             'lib/model/**/*.test.ts',

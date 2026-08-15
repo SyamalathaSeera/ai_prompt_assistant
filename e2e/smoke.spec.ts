@@ -35,22 +35,41 @@ test('the fixture behaves like the real composer', async ({ openChat }) => {
     .toEqual(['hello there']);
 });
 
-test('makes no network requests', async ({ openChat, context }) => {
+test('makes no network requests, following the steps the privacy screen gives', async ({
+  openChat,
+  context,
+}) => {
   /*
-   * ADR-001, checked end to end.
+   * ADR-001, checked end to end — and specifically, the instruction the privacy
+   * statement prints for the user:
+   *
+   *   1. open DevTools    2. filter Fetch/XHR
+   *   3. type something with a key in it
+   *   4. watch it get caught, and watch the tab stay empty
+   *
+   * Steps 3 and 4 are what this reproduces. Telling someone to check something
+   * is only worth doing if the check passes, so the instruction on the screen
+   * and the assertion here have to be the same instruction.
    *
    * `test/no-network.test.ts` audits the bundle for transport; this watches an
    * actual browser. The fixture route aborts anything not served locally, so a
-   * request from the extension shows up here as a failed request rather than
-   * as traffic.
+   * request from the extension shows up here as a failed request rather than as
+   * traffic.
    */
   const attempted: string[] = [];
   context.on('requestfailed', (request) => attempted.push(request.url()));
+  context.on('request', (request) => attempted.push(request.url()));
 
   const page = await openChat();
   await page.click('#prompt-textarea');
   await page.keyboard.type('a draft with an AKIA3TZ2MRSYNTHETIC7 key in it');
+
+  // Step 4: the catch actually happens. A network tab that stays empty because
+  // the extension did nothing would prove nothing at all.
+  await page.keyboard.press('Enter');
   await page.waitForTimeout(1000);
+
+  expect(await shadowHas(page, 'apa-modal')).toBe(true);
 
   // Only remote schemes count. A `chrome-extension:` URL is the extension
   // reading its own bundled file, which is not a network request in any sense

@@ -10,6 +10,7 @@ import {
 } from '@/lib/adapters/platforms';
 import { deleteAllData, getSettings, setSettings } from '@/lib/storage';
 import { clearErrors, formatForReport, getErrors, type LoggedError } from '@/lib/errors';
+import { PrivacyStatement } from '@/components/PrivacyStatement';
 import { ensureSession, getModelFeatures, type ModelFeatures } from '@/lib/model';
 import { STYLES, type RefinementStyle } from '@/lib/refine';
 import { removeFromAllowlist } from '@/lib/policy/allowlist';
@@ -469,30 +470,12 @@ function Options() {
 
       <Section title="Your data">
         <div className="rounded-lg border border-current/10 p-4 text-sm">
-          <dl className="grid gap-2">
-            <div>
-              <dt className="font-medium">What is read</dt>
-              <dd className="opacity-70">
-                The text in the message box on the sites above, while you are typing or
-                pasting.
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium">What is stored on this device</dt>
-              <dd className="opacity-70">
-                These settings, a count of how many secrets were caught, and allowlisted
-                values as one-way hashes. Real values are held in memory only, to restore
-                replies, and are cleared when you close the browser.
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium">What is sent anywhere</dt>
-              <dd className="opacity-70">
-                Nothing. You can confirm this: open DevTools, use the extension, and watch
-                the Network tab stay empty.
-              </dd>
-            </div>
-          </dl>
+          {/*
+            The same component the welcome page renders. This section used to
+            carry its own hand-written copy, which meant the product made two
+            privacy statements that had to be kept in agreement by memory.
+          */}
+          <PrivacyStatement compact />
 
           <button
             type="button"

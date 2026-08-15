@@ -220,3 +220,119 @@ describe('the local-only claim', () => {
     expect(container.textContent).toContain('Nothing you type leaves this device');
   });
 });
+
+describe('leading with the catch count', () => {
+  it('puts the count above everything but the status', async () => {
+    /*
+     * This is the answer to "why do I still have this installed", and it is the
+     * only thing a returning user opens the popup to see. It used to sit below
+     * the status line as one of two equal tiles.
+     */
+    await recordCatch('aws.access_key_id');
+    mount();
+    await ready();
+
+    await waitFor(() => expect($('count-headline')).not.toBeNull());
+    expect($('count-week')?.textContent).toBe('1');
+    expect($('count-total')?.textContent).toBe('1');
+  });
+
+  it('says so plainly when nothing has been caught', async () => {
+    // Padding the number would make every other number untrustworthy.
+    mount();
+    await ready();
+
+    await waitFor(() => expect($('count-empty')).not.toBeNull());
+    expect($('count-week')?.textContent).toBe('0');
+  });
+
+  it('reads correctly for a single catch', async () => {
+    await recordCatch('aws.access_key_id');
+    mount();
+    await ready();
+
+    await waitFor(() =>
+      expect($('count-headline')?.textContent).toContain('secret caught this week'),
+    );
+    expect($('count-headline')?.textContent).not.toContain('secrets caught');
+  });
+});
+
+describe('the first-catch moment', () => {
+  it('never appears before a genuine catch', async () => {
+    /*
+     * The onboarding demo does not record a catch, so this cannot fire on the
+     * strength of someone pressing "try it" on the welcome page. Only the real
+     * interception path calls `recordCatch`.
+     */
+    mount();
+    await ready();
+
+    expect($('first-catch')).toBeNull();
+  });
+
+  it('appears after the first real catch', async () => {
+    await recordCatch('aws.access_key_id');
+    mount();
+    await ready();
+
+    await waitFor(() => expect($('first-catch')).not.toBeNull());
+  });
+
+  it('appears at most once, ever', async () => {
+    await recordCatch('aws.access_key_id');
+    mount();
+    await ready();
+    await waitFor(() => expect($('first-catch')).not.toBeNull());
+
+    $('first-catch-dismiss')?.click();
+    await waitFor(() => expect($('first-catch')).toBeNull());
+
+    // Reopened later, with more catches since. Still gone.
+    await recordCatch('aws.access_key_id');
+    document.body.innerHTML = '';
+    __resetCacheForTests();
+    mount();
+    await ready();
+
+    await waitFor(() => expect($('count-week')?.textContent).toBe('2'));
+    expect($('first-catch')).toBeNull();
+  });
+
+  it('records the acknowledgement so it survives a restart', async () => {
+    await recordCatch('aws.access_key_id');
+    mount();
+    await ready();
+    await waitFor(() => expect($('first-catch')).not.toBeNull());
+
+    $('first-catch-dismiss')?.click();
+
+    await waitFor(async () => {
+      expect((await getSettings()).firstCatchAcknowledged).toBe(true);
+    });
+  });
+
+  it('offers no rating link until there is a listing to point at', async () => {
+    // A "rate it" button leading nowhere spends the one prompt this product
+    // ever gets, on nothing.
+    await recordCatch('aws.access_key_id');
+    mount();
+    await ready();
+    await waitFor(() => expect($('first-catch')).not.toBeNull());
+
+    expect($('first-catch-rate')).toBeNull();
+    expect($('first-catch-dismiss')?.textContent).toContain('Got it');
+  });
+
+  it('transmits nothing', async () => {
+    // The acknowledgement is a local read of a local counter. There is no
+    // beacon, no ping, and nothing to opt out of.
+    await recordCatch('aws.access_key_id');
+    mount();
+    await ready();
+    await waitFor(() => expect($('first-catch')).not.toBeNull());
+
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('iframe')).toBeNull();
+  });
+});

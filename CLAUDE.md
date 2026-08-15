@@ -26,9 +26,9 @@ No backend, no server, no telemetry.
 
 ## Current Status
 
-**Phase**: Post-Milestone 0.5.0.0. Next up: 0.6.0.0, Onboarding
+**Phase**: Post-Milestone 0.6.0.0. Next up: 0.9.0.0, Beta
 **Last Updated**: 2026-08-14
-**Version**: 0.5.0.4
+**Version**: 0.6.0.3
 
 ### Completed Milestones
 - **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind
@@ -107,11 +107,21 @@ No backend, no server, no telemetry.
   one planned exception to rule #1 below, and rule #1 is now mechanically enforced,
   so the exception was declined rather than carved out.
 
+- **0.6.0.0** (2026-08-14): Onboarding. 1261 tests. A welcome page opens on first
+  install — never on update — carrying a **live demo built from the real detector,
+  a real store, and the real approval modal**, so a new user watches a genuine catch
+  before they ever reach a chat. The privacy screen states claims as data and
+  `test/privacy-claims.test.ts` checks each one against the manifest, the bundle, and
+  the source — including a check that the "sends nothing" claim has not been quietly
+  hedged. The badge and popup lead with a **recent** catch count, which returns to
+  zero honestly. **Task 4 (uninstall feedback) deferred to 0.9.0.0**: it needs a
+  hosted page, and that decision belongs with the store listing. A follow-up sweep
+  fixed a silent unsubscribe bug in all four stores.
+
 ### Active Milestone
-- _None._ Run `/milestone-start 0.6.0.0` to begin.
+- _None._ Run `/milestone-start 0.9.0.0` to begin.
 
 ### Planned Next
-- **0.6.0.0**: Onboarding
 - **0.9.0.0** → **1.0.0.0**: Beta, then public launch
 
 ---

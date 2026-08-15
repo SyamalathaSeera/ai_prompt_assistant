@@ -34,6 +34,8 @@ export const DEFAULT_SETTINGS: Settings = {
   // meant, so it has to be opted into rather than discovered by surprise.
   clarifyEnabled: false,
   refineStyle: DEFAULT_STYLE,
+  // Nothing has been caught yet, so nothing has been acknowledged.
+  firstCatchAcknowledged: false,
   allowlist: [],
   pausedHosts: [],
   pausedUntil: null,

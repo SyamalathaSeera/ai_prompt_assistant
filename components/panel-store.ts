@@ -133,9 +133,27 @@ export function createPanelStore(config: PanelStoreConfig = {}): PanelStore {
   return {
     get: () => state,
 
+    /**
+     * Subscribes, giving each call its own identity.
+     *
+     * The wrapper is the point. Listeners live in a `Set` and are removed by
+     * identity, so subscribing the *same function twice* — which is exactly
+     * what `store.subscribe(setState)` does across two effect runs — used to
+     * collapse into one entry that the first cleanup then deleted. The result
+     * was a component silently unsubscribed from a store that was working
+     * perfectly: state advanced, nothing rendered, nothing threw.
+     *
+     * That happened for real on the welcome page (milestone 0.6.0.1) and was
+     * only caught because a test asserted on the rendered modal rather than on
+     * the store. Fixing it here rather than at each call site means a future
+     * consumer cannot reintroduce it by writing the obvious thing.
+     */
     subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+      const entry = (next: PanelState) => listener(next);
+      listeners.add(entry);
+      return () => {
+        listeners.delete(entry);
+      };
     },
 
     present(submission) {

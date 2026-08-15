@@ -1,7 +1,7 @@
 ﻿# TASKS.md: AI Prompt Assistant Milestone Tracker
 
 **Last Updated**: 2026-08-14
-**Current Version**: 0.5.0.4
+**Current Version**: 0.6.0.3
 
 ---
 
@@ -20,6 +20,7 @@
 | [0.3.0.0](./tasks/Milestone0.3.0.0.md) | Complete | 2026-08-13 | 6/6 | Prompt refinement |
 | [0.4.0.0](./tasks/Milestone0.4.0.0.md) | Complete | 2026-08-14 | 5/5 | Clarify with context |
 | [0.5.0.0](./tasks/Milestone0.5.0.0.md) | Complete | 2026-08-14 | 5/5 | Hardening, resilience, performance, e2e |
+| [0.6.0.0](./tasks/Milestone0.6.0.0.md) | Complete | 2026-08-14 | 4/4 | Onboarding and first-run experience |
 
 ---
 
@@ -27,7 +28,7 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| _(none)_ | — | — | Run `/milestone-start 0.6.0.0` to begin the next one |
+| _(none)_ | — | — | Run `/milestone-start 0.9.0.0` to begin the next one |
 
 ---
 
@@ -35,7 +36,6 @@
 
 | Milestone | Status | Priority | Description |
 |---|---|---|---|
-| [0.6.0.0](./tasks/Milestone0.6.0.0.md) | Planning | HIGH | Onboarding and first-run experience |
 | [0.9.0.0](./tasks/Milestone0.9.0.0.md) | Planning | HIGH | Beta: unlisted store deploy + real-user testing |
 | [1.0.0.0](./tasks/Milestone1.0.0.0.md) | Planning | CRITICAL | Public Chrome Web Store launch |
 
@@ -48,6 +48,15 @@ redaction (done), prompt refinement, and clarify-with-context. Extensions 2 and 
 (chat-to-project, chat organiser) remain separate products for later, with their own
 repos and listings â€” they need broad permissions that would wreck this one's
 narrow-install pitch.
+
+**Uninstall feedback is deferred to 0.9.0.0 (2026-08-14).** Milestone 0.6.0.0 Task 4
+needs `setUninstallURL` to point at a page someone hosts, and ADR-001 says there is
+no backend. The mechanism is defensible — the browser navigates a tab after the
+extension is gone — but it points somewhere real, and visiting it reveals an IP and
+a timestamp, which is a different promise from the one every other screen makes.
+Deferred rather than dropped: it is the only honest signal separating *too many
+false positives* from *did nothing visible*, the two retention hypotheses. Revisit
+alongside the store listing, when the hosting question has an answer.
 
 **Remote selector config is deferred past 1.0 (2026-08-14).** Milestone 0.5.0.0 Task 2
 would have fetched a signed selector map to fix host DOM breakage without a store
