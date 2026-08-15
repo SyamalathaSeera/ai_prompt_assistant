@@ -55,9 +55,13 @@ export function createRiskStore(config: RiskStoreConfig = {}): RiskStore {
   return {
     get: () => snapshot,
 
+    /** Own identity per subscription — see `panel-store.ts` for why. */
     subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+      const entry = (next: RiskSnapshot) => listener(next);
+      listeners.add(entry);
+      return () => {
+        listeners.delete(entry);
+      };
     },
 
     setRisk(level, findings, text) {

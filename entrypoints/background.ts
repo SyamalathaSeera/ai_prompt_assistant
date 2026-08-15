@@ -1,5 +1,6 @@
 import { syncRegistrations } from '@/lib/adapters/platforms';
 import { dispatchRefineToActiveTab, REFINE_COMMAND } from '@/lib/messaging';
+import { refreshBadge, watchCounters } from '@/lib/badge';
 
 export default defineBackground(() => {
   /**
@@ -38,7 +39,44 @@ export default defineBackground(() => {
    */
   void syncRegistrations();
   browser.runtime.onStartup.addListener(() => void syncRegistrations());
-  browser.runtime.onInstalled.addListener(() => void syncRegistrations());
+
+  /**
+   * The toolbar badge.
+   *
+   * Watches the counters key rather than listening for a message from the
+   * content script. The catch is already written to storage, so there is no
+   * second path to keep in step — and the badge is correct no matter which
+   * surface recorded it.
+   *
+   * Refreshed on startup too: a service worker that was asleep when the window
+   * opened would otherwise show nothing until the next catch.
+   */
+  void refreshBadge();
+  browser.runtime.onStartup.addListener(() => void refreshBadge());
+  watchCounters();
+
+  browser.runtime.onInstalled.addListener((details) => {
+    void syncRegistrations();
+
+    /**
+     * The welcome page, on first install only.
+     *
+     * A passive security tool has a structural problem: when it works, nothing
+     * happens. Someone who installs this and sees no change removes it within a
+     * fortnight, so the page exists to make a catch happen once, deliberately,
+     * before they are anywhere near a real conversation.
+     *
+     * **Only `install`.** An update firing this would open a tab in the face of
+     * someone mid-task who did not ask for it — and would do so on every release
+     * forever. `chrome_update` and `shared_module_update` are filtered out by
+     * the same check; only a genuine first install gets a tab.
+     */
+    if (details.reason !== 'install') return;
+
+    browser.tabs.create({ url: browser.runtime.getURL('/welcome.html') }).catch(() => {
+      /* a welcome tab that fails to open must never break the install */
+    });
+  });
 
   /**
    * A permission revoked outside our options page — from Chrome's own

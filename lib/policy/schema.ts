@@ -92,6 +92,20 @@ export interface Settings {
    */
   allowlist: AllowlistEntry[];
 
+  /**
+   * Whether the first-catch acknowledgement has been shown.
+   *
+   * Shown **once, ever, and only after a genuine catch** — never after the
+   * onboarding demo, which does not record one. The moment right after the
+   * extension has visibly done its job is when goodwill is highest, and it is
+   * also the only moment where asking for anything is defensible.
+   *
+   * A single flag rather than a counter, because the requirement is not "show
+   * it rarely" but "show it once". A counter invites someone to raise the
+   * threshold later; a boolean has nowhere to go.
+   */
+  firstCatchAcknowledged: boolean;
+
   /** Hosts the user has explicitly paused, e.g. `chatgpt.com`. */
   pausedHosts: string[];
 

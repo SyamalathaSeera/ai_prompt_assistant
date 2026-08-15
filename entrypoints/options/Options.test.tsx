@@ -6,6 +6,7 @@ import { ALL_RULES } from '@/lib/detector/rules';
 import { __resetCacheForTests, getSettings, recordCatch, setSettings } from '@/lib/storage';
 import { __resetForTests as __resetSessionForTests } from '@/lib/model/session';
 import { put } from '@/lib/vault';
+import { PRIVACY_CLAIMS } from '@/components/PrivacyStatement';
 
 let container: HTMLElement;
 
@@ -238,13 +239,21 @@ describe('allowlist', () => {
 
 describe('privacy section', () => {
   it('states what is read, stored, and sent', async () => {
+    /*
+     * Asserted against the shared claims rather than against copy repeated
+     * here. This section used to carry its own hand-written statement and this
+     * test its own hand-written copy of that — three places holding the same
+     * promise, kept in agreement by memory. Only one of them was ever going to
+     * be updated.
+     */
     mount();
     await ready();
 
     const text = container.textContent ?? '';
-    expect(text).toContain('What is read');
-    expect(text).toContain('What is stored on this device');
-    expect(text).toContain('What is sent anywhere');
+    for (const claim of PRIVACY_CLAIMS) {
+      expect(text, `claim "${claim.id}" is missing`).toContain(claim.question);
+      expect(text).toContain(claim.answer);
+    }
   });
 
   it('tells the user how to verify the claim themselves', async () => {

@@ -145,6 +145,13 @@ export function coerceSettings(stored: unknown): Settings {
     // into this build must not find a new feature volunteering opinions at
     // them. Opting in stays a deliberate act.
     clarifyEnabled: boolean(stored.clarifyEnabled, DEFAULT_SETTINGS.clarifyEnabled),
+    // Additive. An existing user who has already been caught something will see
+    // the acknowledgement once on update, which is the right side to err on:
+    // showing it twice ever is a smaller cost than never showing it.
+    firstCatchAcknowledged: boolean(
+      stored.firstCatchAcknowledged,
+      DEFAULT_SETTINGS.firstCatchAcknowledged,
+    ),
     allowlist: allowlistEntries(stored.allowlist),
     pausedHosts: stringArray(stored.pausedHosts, []),
     pausedUntil:

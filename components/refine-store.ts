@@ -106,10 +106,12 @@ export function createRefineStore(config: RefineStoreConfig): RefineStore {
   return {
     get: () => state,
 
+    /** Own identity per subscription — see `panel-store.ts` for why. */
     subscribe(listener) {
-      listeners.add(listener);
+      const entry = (next: RefineState) => listener(next);
+      listeners.add(entry);
       return () => {
-        listeners = new Set([...listeners].filter((l) => l !== listener));
+        listeners = new Set([...listeners].filter((l) => l !== entry));
       };
     },
 

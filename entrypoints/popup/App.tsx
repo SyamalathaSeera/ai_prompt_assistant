@@ -49,6 +49,21 @@ async function activeHostname(): Promise<string | null> {
   }
 }
 
+/**
+ * Where "Rate it" points.
+ *
+ * `null` until the extension has a Chrome Web Store listing — it has not been
+ * submitted. The acknowledgement still shows without it, because the
+ * acknowledgement is the part that earns retention; the rating ask is the part
+ * that needs somewhere to go.
+ *
+ * Set this to
+ * `https://chromewebstore.google.com/detail/<id>/reviews` at launch. A test
+ * pins the current value so flipping it is a deliberate act rather than a
+ * half-finished edit.
+ */
+export const STORE_REVIEW_URL: string | null = null;
+
 function minutesLeft(until: number, now = Date.now()): number {
   return Math.max(1, Math.ceil((until - now) / 60_000));
 }
@@ -173,20 +188,92 @@ function App() {
         </p>
       )}
 
-      <section className="mt-4 grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-current/15 p-3">
-          <div className="text-xl font-semibold tabular-nums" data-testid="count-week">
-            {week}
+      {/*
+        The catch count leads.
+
+        This is the answer to "why do I still have this installed", and it is
+        the only thing on this popup a returning user is really here to see. It
+        used to sit below the status line as one of two equal tiles; a passive
+        tool cannot afford to make its evidence of work the second thing you
+        read.
+      */}
+      <section className="mt-4">
+        <div
+          className="rounded-lg border border-current/15 p-4"
+          data-testid="count-headline"
+        >
+          <div className="flex items-baseline gap-2">
+            <span
+              className="text-3xl font-semibold tabular-nums"
+              data-testid="count-week"
+            >
+              {week}
+            </span>
+            <span className="text-sm opacity-70">
+              {week === 1 ? 'secret caught this week' : 'secrets caught this week'}
+            </span>
           </div>
-          <div className="text-xs opacity-60">caught this week</div>
-        </div>
-        <div className="rounded-lg border border-current/15 p-3">
-          <div className="text-xl font-semibold tabular-nums" data-testid="count-total">
-            {total}
-          </div>
-          <div className="text-xs opacity-60">caught in total</div>
+
+          <p className="mt-1 text-xs opacity-60" data-testid="count-total-line">
+            <span data-testid="count-total">{total}</span>
+            {total === 1 ? ' since you installed it' : ' in total since you installed it'}
+          </p>
+
+          {total === 0 && (
+            // Honest about a quiet week rather than padding the number. Someone
+            // who has caught nothing should be told the tool is watching, not
+            // shown a figure that implies otherwise.
+            <p className="mt-2 text-xs opacity-60" data-testid="count-empty">
+              Nothing yet. It only counts when something real is found.
+            </p>
+          )}
         </div>
       </section>
+
+      {/*
+        The milestone moment.
+
+        Shown once, ever, and only after a genuine catch — the onboarding demo
+        does not record one, so this cannot fire before the extension has
+        actually done its job. Right after that is when goodwill is highest and
+        the only point where asking for anything is defensible.
+      */}
+      {total > 0 && !settings.firstCatchAcknowledged && (
+        <section
+          data-testid="first-catch"
+          className="mt-3 rounded-lg border border-current/25 p-3"
+        >
+          <p className="text-sm font-medium">That is one that did not get out.</p>
+          <p className="mt-1 text-xs opacity-70">
+            It stayed on your machine. Nothing about it was sent anywhere, including
+            to us.
+          </p>
+
+          <div className="mt-2 flex flex-wrap gap-2">
+            {STORE_REVIEW_URL !== null && (
+              <a
+                data-testid="first-catch-rate"
+                href={STORE_REVIEW_URL}
+                target="_blank"
+                rel="noreferrer noopener"
+                onClick={() => void update({ firstCatchAcknowledged: true })}
+                className="rounded-md border border-current/25 px-2.5 py-1.5 text-xs"
+              >
+                Rate it
+              </a>
+            )}
+
+            <button
+              type="button"
+              data-testid="first-catch-dismiss"
+              onClick={() => void update({ firstCatchAcknowledged: true })}
+              className="rounded-md px-2.5 py-1.5 text-xs opacity-70"
+            >
+              {STORE_REVIEW_URL === null ? 'Got it' : 'No thanks'}
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="mt-3 flex flex-wrap gap-2">
         {timedPause === null ? (
