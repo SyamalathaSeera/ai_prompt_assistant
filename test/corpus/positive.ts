@@ -17,6 +17,43 @@ const PEM_BLOCK = [
 ].join('\n');
 
 export const POSITIVE_CASES: readonly PositiveCase[] = [
+  /*
+   * Secrets written in a sentence, not in a config file.
+   *
+   * Added 2026-08-15 after live use on chatgpt.com: a real draft carried an AWS
+   * key and a password, and only the key was caught. Every config sample in
+   * this corpus puts assignments at the start of a line, which is precisely
+   * what `env.secret_assignment` requires — so the corpus agreed with the rule
+   * and neither noticed that people do not type that way in a chat window.
+   *
+   * These are the shapes a person actually produces. They are caught by
+   * `env.inline_secret`, which is LOW tier: suggested, never blocking.
+   */
+  {
+    name: 'password mentioned mid-sentence',
+    kind: 'chat',
+    text: 'deploy with AKIA3TZ2MRSYNTHETIC7 and password: Syam_123* for the admin user',
+    secrets: [
+      { value: 'AKIA3TZ2MRSYNTHETIC7', ruleId: 'aws.access_key_id' },
+      { value: 'Syam_123*', ruleId: 'env.inline_secret' },
+    ],
+  },
+
+  {
+    name: 'password written with a dash',
+    kind: 'chat',
+    text: 'Create a website for a restaurant portal. AWS Password- Syam_123* thanks',
+    secrets: [{ value: 'Syam_123*', ruleId: 'env.inline_secret' }],
+  },
+
+  {
+    name: 'api token quoted in prose',
+    kind: 'chat',
+    text: 'I set the api_token = 7fK2mQ9xR4nL8pW3 in staging, is that why it 401s?',
+    secrets: [{ value: '7fK2mQ9xR4nL8pW3', ruleId: 'env.inline_secret' }],
+  },
+
+
   {
     name: 'production .env file',
     kind: 'config',

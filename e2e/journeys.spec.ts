@@ -145,6 +145,63 @@ test.describe('a prompt containing a secret', () => {
   });
 });
 
+test.describe('a secret written in a sentence', () => {
+  test('catches both the key and the password', async ({ openChat }) => {
+    /*
+     * A regression test taken straight from real use.
+     *
+     * This exact draft was typed into chatgpt.com and only the AWS key was
+     * caught. `env.secret_assignment` is anchored to the start of a line — it
+     * is built for `.env` pastes — so a password written mid-sentence, which is
+     * how people actually type in a chat window, was invisible to it.
+     *
+     * The corpus could not have found this: every config sample in it puts
+     * assignments at line start, so the corpus and the rule agreed with each
+     * other and neither noticed. It took five minutes of using the thing.
+     */
+    const page = await openChat();
+
+    await type(page, `deploy with ${AWS_KEY} and password: Syam_123*`);
+    await submit(page);
+
+    expect(await sent(page)).toEqual([]);
+    expect(await shadowHas(page, 'apa-modal')).toBe(true);
+
+    // The key blocks. That was already true and must stay true.
+    const blocking = await shadowText(page, 'apa-finding-list');
+    expect(blocking).toContain('AWS');
+
+    // The password is advisory, so it sits behind the disclosure rather than
+    // holding the message. Expanding it is the assertion that it exists at all.
+    expect(await shadowHas(page, 'apa-advisory-toggle')).toBe(true);
+    await shadowClick(page, 'apa-advisory-toggle');
+    await page.waitForTimeout(200);
+
+    const advisory = await shadowText(page, 'apa-advisory-list');
+    expect(advisory).toContain('sentence');
+
+    // Neither value is ever printed in full, advisory or not.
+    const all = await shadowText(page, 'apa-modal');
+    expect(all).not.toContain(AWS_KEY);
+    expect(all).not.toContain('Syam_123*');
+  });
+
+  test('redacting takes both out', async ({ openChat }) => {
+    const page = await openChat();
+
+    await type(page, `deploy with ${AWS_KEY} and password: Syam_123*`);
+    await submit(page);
+    await shadowClick(page, 'apa-send-redacted');
+    await page.waitForTimeout(600);
+
+    const messages = await sent(page);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).not.toContain(AWS_KEY);
+    expect(messages[0]).not.toContain('Syam_123*');
+    expect(messages[0]).toContain('deploy with');
+  });
+});
+
 test.describe('the risk indicator', () => {
   test('warns while typing, before anything is submitted', async ({ openChat }) => {
     const page = await openChat();
