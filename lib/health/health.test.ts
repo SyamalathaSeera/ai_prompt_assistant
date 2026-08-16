@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createHealthMonitor, isHeuristic, levelFor } from './index';
+import { createHealthMonitor, isFallback, levelFor } from './index';
 import type { HealthReport } from './index';
 import type { AdapterHealth } from '../adapters/types';
 
@@ -50,6 +50,44 @@ describe('grading a self-check', () => {
     expect(levelFor(health({ resolvedVia: 'editable-near-submit' }))).toBe('degraded');
   });
 
+  it('is degraded when a generic fallback resolved', () => {
+    /*
+     * Observed live on chatgpt.com: one second after injection the ProseMirror
+     * composer had not rendered, the chain fell through to `visible-textarea`,
+     * and health reported **healthy** — then stopped polling, because a healthy
+     * page is not re-checked. The extension sat on a guess and called it fine,
+     * which is precisely the silent failure this module exists to prevent.
+     *
+     * These two name a shape, not a platform. They are fallbacks in everything
+     * but where they sit in the adapter file.
+     */
+    expect(levelFor(health({ resolvedVia: 'visible-textarea' }))).toBe('degraded');
+    expect(levelFor(health({ resolvedVia: 'largest-editable' }))).toBe('degraded');
+  });
+
+  it('upgrades itself once the real composer arrives', () => {
+    // The half of the fix that matters most. Grading a fallback as degraded
+    // keeps the monitor polling, so a slow-rendering page recovers to healthy
+    // on its own instead of being stuck on whatever existed at second one.
+    const clock = immediate();
+    const seen: HealthReport[] = [];
+    let via = 'visible-textarea';
+
+    createHealthMonitor({
+      adapter: { checkHealth: () => health({ resolvedVia: via }) },
+      onChange: (report) => seen.push(report),
+      schedule: clock.schedule,
+      cancel: clock.cancel,
+    });
+
+    expect(seen.at(-1)?.level).toBe('degraded');
+
+    via = 'id';
+    clock.drain();
+
+    expect(seen.at(-1)?.level).toBe('healthy');
+  });
+
   it('is unavailable when no composer was found', () => {
     expect(levelFor(health({ composerFound: false }))).toBe('unavailable');
   });
@@ -63,10 +101,17 @@ describe('grading a self-check', () => {
     expect(levelFor(health({ submitListenersAttached: false }))).toBe('unavailable');
   });
 
-  it('knows which strategy names are heuristics', () => {
-    expect(isHeuristic('focused-editable')).toBe(true);
-    expect(isHeuristic('id')).toBe(false);
-    expect(isHeuristic(null)).toBe(false);
+  it('knows which strategy names are fallbacks', () => {
+    expect(isFallback('focused-editable')).toBe(true);
+    expect(isFallback('visible-textarea')).toBe(true);
+    expect(isFallback('largest-editable')).toBe(true);
+
+    // Platform-specific hooks. Resolving through one of these is the tool
+    // working as designed, not recovering from a change.
+    expect(isFallback('id')).toBe(false);
+    expect(isFallback('role-textbox')).toBe(false);
+    expect(isFallback('prosemirror')).toBe(false);
+    expect(isFallback(null)).toBe(false);
   });
 });
 

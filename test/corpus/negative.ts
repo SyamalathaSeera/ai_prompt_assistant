@@ -11,6 +11,44 @@ import type { NegativeCase } from './types';
  * here before it is fixed, so the fix is regression-tested forever.
  */
 export const NEGATIVE_CASES: readonly NegativeCase[] = [
+  /*
+   * Sentences that mention a secret word without containing a secret.
+   *
+   * The counterweight to the inline cases added to the positive corpus. Taking
+   * the line anchor off `env.secret_assignment` is what makes this class of
+   * text reachable at all, so it has to be represented here or the loosening
+   * is untested in the direction that actually costs users something.
+   */
+  {
+    name: 'password policy described in prose',
+    kind: 'chat',
+    text: 'The signup form says your password: must be at least twelve characters and contain a symbol. Is that configurable?',
+  },
+
+  {
+    name: 'talking about tokens without pasting one',
+    kind: 'chat',
+    text: 'How do I rotate the api_token = the one the deploy script reads, without downtime for existing sessions?',
+  },
+
+  {
+    name: 'hyphenated placeholder in a config template',
+    kind: 'config',
+    /*
+     * The exact regression that made `env.inline_secret` fire on a
+     * documentation placeholder: `secret` `-` `access-key` read as a key and a
+     * value. Accepting a dash as a separator only when whitespace follows it is
+     * what separates "Password- hunter2pass" from a hyphenated identifier.
+     */
+    text: [
+      '# copy to .env and fill in',
+      'AWS_SECRET_ACCESS_KEY=<your-secret-access-key>',
+      'OPENAI_API_KEY=sk-your-openai-key-here',
+      'API_TOKEN=YOUR_API_KEY',
+    ].join('\n'),
+  },
+
+
   {
     name: 'ordinary TypeScript',
     kind: 'code',

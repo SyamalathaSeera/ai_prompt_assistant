@@ -1,7 +1,7 @@
 ﻿# TASKS.md: AI Prompt Assistant Milestone Tracker
 
 **Last Updated**: 2026-08-14
-**Current Version**: 0.6.0.3
+**Current Version**: 0.6.0.4
 
 ---
 

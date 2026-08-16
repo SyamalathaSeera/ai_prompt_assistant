@@ -1,4 +1,4 @@
-import { HEURISTIC_COMPOSER_STRATEGIES } from '../adapters/heuristic';
+import { FALLBACK_STRATEGY_NAMES } from '../adapters/heuristic';
 import type { AdapterHealth, SiteAdapter } from '../adapters/types';
 
 /**
@@ -41,11 +41,18 @@ export interface HealthReport {
   attempts: number;
 }
 
-const HEURISTIC_NAMES = new Set(HEURISTIC_COMPOSER_STRATEGIES.map((s) => s.name));
+const FALLBACK_NAMES = new Set(FALLBACK_STRATEGY_NAMES);
 
-/** Whether a resolution came from the shared last-resort strategies. */
-export function isHeuristic(resolvedVia: string | null): boolean {
-  return resolvedVia !== null && HEURISTIC_NAMES.has(resolvedVia);
+/**
+ * Whether a resolution came from a fallback rather than a named platform hook.
+ *
+ * Covers the generic tail of every adapter's chain, not just the two shared
+ * heuristics — `largest-editable` and `visible-textarea` describe a shape, not
+ * a platform, and treating them as a healthy resolution is what let a live page
+ * report full protection while sitting on a guess.
+ */
+export function isFallback(resolvedVia: string | null): boolean {
+  return resolvedVia !== null && FALLBACK_NAMES.has(resolvedVia);
 }
 
 /** Turns a raw adapter self-check into a level. */
@@ -62,7 +69,7 @@ export function levelFor(health: AdapterHealth): HealthLevel {
    */
   if (!health.submitListenersAttached) return 'unavailable';
 
-  return isHeuristic(health.resolvedVia) ? 'degraded' : 'healthy';
+  return isFallback(health.resolvedVia) ? 'degraded' : 'healthy';
 }
 
 /**

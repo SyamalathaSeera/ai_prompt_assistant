@@ -205,3 +205,28 @@ export const HEURISTIC_COMPOSER_STRATEGIES: readonly SelectorStrategy[] = [
   byFocusedEditable(),
   byEditableNearSubmit(),
 ];
+
+/**
+ * Strategy names that mean "we guessed".
+ *
+ * Wider than the two heuristics above, and the difference matters. Each adapter
+ * ends its chain with `largest-editable` and `visible-textarea`, which name a
+ * *shape* rather than anything about the platform — they are fallbacks in
+ * everything but where they sit in the file.
+ *
+ * The health layer originally graded only the two heuristics as degraded, so a
+ * resolution through one of these reported **healthy**. That was observed live
+ * on chatgpt.com: one second after injection the ProseMirror composer had not
+ * rendered, the chain fell through to `visible-textarea`, health reported
+ * `healthy` — and because a healthy page stops being polled, it never looked
+ * again. The extension sat on a guess and called it fine.
+ *
+ * Grading them as degraded fixes both halves at once: the user is told the
+ * ground has moved, and the monitor keeps checking, so it upgrades itself to
+ * healthy the moment the real composer appears.
+ */
+export const FALLBACK_STRATEGY_NAMES: readonly string[] = [
+  ...HEURISTIC_COMPOSER_STRATEGIES.map((s) => s.name),
+  'largest-editable',
+  'visible-textarea',
+];
