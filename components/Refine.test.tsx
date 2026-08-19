@@ -5,6 +5,7 @@ import { createPanelStore, type PanelStore } from './panel-store';
 import { createRefineStore, type RefineStore } from './refine-store';
 import { createRiskStore, type RiskStore } from './risk-store';
 import { __resetForTests } from '@/lib/model/session';
+import { STYLES } from '@/lib/refine';
 import { detect } from '@/lib/detector/engine';
 import { ALL_RULES } from '@/lib/detector/rules';
 
@@ -436,5 +437,220 @@ describe('one question at a time', () => {
 
     await waitFor(() => expect($('apa-modal')).not.toBeNull());
     expect($('apa-refine-review')).toBeNull();
+  });
+});
+
+describe('the style picker', () => {
+  /*
+   * Five names for one setting, reachable from a caret next to the button.
+   * It had no coverage at all before the control was rebuilt, which is how a
+   * menu with role="menu" and no arrow keys survived this long.
+   */
+
+  const openPicker = async () => {
+    await waitFor(() => expect($('apa-refine-style')).not.toBeNull());
+    $('apa-refine-style')!.click();
+    await waitFor(() => expect($('apa-refine-styles')).not.toBeNull());
+  };
+
+  const itemsInMenu = () => [
+    ...$('apa-refine-styles')!.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+  ];
+
+  it('marks the current style rather than only tinting it', async () => {
+    // A background tint is invisible to a screen reader and easy to miss
+    // sighted. aria-checked is the part that answers "which one am I using?"
+    // without opening anything.
+    installModel(() => SUGGESTION);
+    mount();
+    await openPicker();
+
+    const checked = itemsInMenu().filter(
+      (item) => item.getAttribute('aria-checked') === 'true',
+    );
+    expect(checked).toHaveLength(1);
+    expect(checked[0]!.textContent).toContain(STYLES[0]!.label);
+  });
+
+  it('opens with the current choice focused', async () => {
+    installModel(() => SUGGESTION);
+    mount();
+    await openPicker();
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe($('apa-refine-style-' + STYLES[0]!.id)),
+    );
+  });
+
+  it('moves through the options with the arrow keys', async () => {
+    /*
+     * role="menu" is a promise that arrow keys work. Buttons in a div do not
+     * keep it on their own, and a menu that only answers to Tab is one a
+     * keyboard user has to escape rather than use.
+     */
+    installModel(() => SUGGESTION);
+    mount();
+    await openPicker();
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+
+    const menu = $('apa-refine-styles')!;
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    expect(document.activeElement).toBe($('apa-refine-style-' + STYLES[1]!.id));
+
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    expect(document.activeElement).toBe(
+      $('apa-refine-style-' + STYLES[STYLES.length - 1]!.id),
+    );
+
+    // Wraps rather than stopping dead at the end.
+    menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    expect(document.activeElement).toBe($('apa-refine-style-' + STYLES[0]!.id));
+  });
+
+  it('closes on Escape and gives focus back to the caret', async () => {
+    // Leaving focus on a removed element drops the keyboard user back at the
+    // top of someone else's page.
+    installModel(() => SUGGESTION);
+    mount();
+    await openPicker();
+
+    $('apa-refine-styles')!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+
+    await waitFor(() => expect($('apa-refine-styles')).toBeNull());
+    expect(document.activeElement).toBe($('apa-refine-style'));
+  });
+
+  it('closes when the user clicks the page behind it', async () => {
+    /*
+     * The host page is one click away at all times. A menu that ignored that
+     * click would sit over the chat until it was dismissed on our terms.
+     */
+    installModel(() => SUGGESTION);
+    mount();
+    await openPicker();
+
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+
+    await waitFor(() => expect($('apa-refine-styles')).toBeNull());
+  });
+
+  it('stays open when the click lands inside it', async () => {
+    installModel(() => SUGGESTION);
+    mount();
+    await openPicker();
+
+    $('apa-refine-style-' + STYLES[1]!.id)!.dispatchEvent(
+      new Event('pointerdown', { bubbles: true, composed: true }),
+    );
+
+    expect($('apa-refine-styles')).not.toBeNull();
+  });
+
+  it('runs the refinement in the style that was picked', async () => {
+    installModel(() => SUGGESTION);
+    mount();
+    await openPicker();
+
+    $('apa-refine-style-' + STYLES[1]!.id)!.click();
+
+    await waitFor(() => expect($('apa-refine-review')).not.toBeNull());
+    expect(refineStore.get().style).toBe(STYLES[1]!.id);
+  });
+
+  it('opens upward when the composer leaves room above it', async () => {
+    // The control sits directly above the composer, so a downward menu covers
+    // the draft the user is choosing a style for.
+    installModel(() => SUGGESTION);
+    mount({ composerRect: { top: 600, bottom: 660 } });
+    await openPicker();
+
+    expect($('apa-refine-styles')!.dataset.direction).toBe('up');
+  });
+
+  it('opens downward when there is no room above', async () => {
+    installModel(() => SUGGESTION);
+    mount({ composerRect: { top: 90, bottom: 150 } });
+    await openPicker();
+
+    expect($('apa-refine-styles')!.dataset.direction).toBe('down');
+  });
+
+  it('cannot be opened while a refinement is running', async () => {
+    // Changing the style mid-run would describe a request already in flight.
+    let release: (value: string) => void = () => {};
+    installModel(() => new Promise<string>((resolve) => (release = resolve)));
+    mount();
+
+    await waitFor(() => expect($('apa-refine-button')).not.toBeNull());
+    $('apa-refine-button')!.click();
+    await waitFor(() =>
+      expect(($('apa-refine-style') as HTMLButtonElement).disabled).toBe(true),
+    );
+
+    release(SUGGESTION);
+  });
+});
+
+describe('the button reads as a control, not as a word', () => {
+  it('names its keyboard shortcut where the pointer already is', async () => {
+    /*
+     * Alt+Shift+I was previously discoverable only by opening settings. The
+     * tooltip and aria-keyshortcuts put it on the control itself, which is
+     * where someone wondering about it is already looking.
+     */
+    installModel(() => SUGGESTION);
+    mount();
+
+    await waitFor(() => expect($('apa-refine-button')).not.toBeNull());
+    expect($('apa-refine-button')!.getAttribute('title')).toContain('Alt+Shift+I');
+    expect($('apa-refine-button')!.getAttribute('aria-keyshortcuts')).toBe('Alt+Shift+I');
+  });
+
+  it('shows a spinner while it works, not just a different word', async () => {
+    // Measured p90 is 10.1 seconds. A static label for that long reads as a
+    // control that has stopped responding.
+    let release: (value: string) => void = () => {};
+    installModel(() => new Promise<string>((resolve) => (release = resolve)));
+    mount();
+
+    await waitFor(() => expect($('apa-refine-button')).not.toBeNull());
+    $('apa-refine-button')!.click();
+
+    await waitFor(() =>
+      expect($('apa-refine-button')!.querySelector('.apa-spin')).not.toBeNull(),
+    );
+
+    release(SUGGESTION);
+  });
+
+  it('says it can be stopped, in words a screen reader reaches', async () => {
+    // The cancel affordance used to be a bare glyph inside the visible label.
+    let release: (value: string) => void = () => {};
+    installModel(() => new Promise<string>((resolve) => (release = resolve)));
+    mount();
+
+    await waitFor(() => expect($('apa-refine-button')).not.toBeNull());
+    $('apa-refine-button')!.click();
+
+    await waitFor(() =>
+      expect($('apa-refine-button')!.getAttribute('aria-label')).toContain('Stop'),
+    );
+
+    release(SUGGESTION);
+  });
+
+  it('keeps every icon out of the accessibility tree', async () => {
+    // Each one sits beside a real label, so announcing them would only add
+    // noise to a control that already says what it does.
+    installModel(() => SUGGESTION);
+    mount();
+
+    await waitFor(() => expect($('apa-refine-anchor')).not.toBeNull());
+    const svgs = [...$('apa-refine-anchor')!.querySelectorAll('svg')];
+
+    expect(svgs.length).toBeGreaterThan(0);
+    for (const svg of svgs) expect(svg.getAttribute('aria-hidden')).toBe('true');
   });
 });

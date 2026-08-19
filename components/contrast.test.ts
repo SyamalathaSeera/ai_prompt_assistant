@@ -100,6 +100,25 @@ describe.each([
     ).toBeGreaterThanOrEqual(AA_LARGE);
   });
 
+  it('control labels on the accent hover tint', () => {
+    // The Improve button and the style menu tint their background on hover.
+    // The label keeps its normal colour, so this is the pair a user reads
+    // while the pointer is on the control — which is most of the time they
+    // are looking at it.
+    expect(
+      contrastOf(tokens['--apa-fg']!, tokens['--apa-accent-soft']!),
+    ).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+
+  it('muted descriptions on the accent hover tint', () => {
+    // The style menu describes each option in muted text, and hovering a row
+    // is exactly when someone is reading that description. This is the
+    // tightest pair in the palette; see the token's own note.
+    expect(
+      contrastOf(tokens['--apa-muted']!, tokens['--apa-accent-soft']!),
+    ).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+
   it('borders are distinguishable from the surface they separate', () => {
     // Below this the dialog has no visible edge against the page behind it.
     expect(contrastOf(tokens['--apa-border']!, tokens['--apa-bg']!)).toBeGreaterThan(1.1);

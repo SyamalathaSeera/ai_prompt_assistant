@@ -46,6 +46,15 @@
   --apa-warn-bg: #fffbeb;
   --apa-accent: #2563eb;
   --apa-accent-fg: #ffffff;
+  /* Hover tint for accent-coloured controls.
+     Kept this pale on purpose. Muted text sits on it in the style menu, and
+     the obvious blue-50 (#eff6ff) measures 4.500:1 against --apa-muted —
+     exactly the AA threshold, with nothing left for a rounding error. This
+     leaves real headroom, and the visible hover signal is the accent border
+     rather than the fill.
+     Text on this never turns accent-blue either: that measures 4.71:1 in
+     light and 3.97:1 in dark, so it would pass AA in one theme only. */
+  --apa-accent-soft: #f4f8ff;
   --apa-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
@@ -61,6 +70,7 @@
   --apa-warn-bg: #2a2216;
   --apa-accent: #3b82f6;
   --apa-accent-fg: #ffffff;
+  --apa-accent-soft: #1e2a3f;
   --apa-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.4);
 }
 
@@ -71,5 +81,173 @@
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * The Improve control.
+ *
+ * Written as real rules rather than utility classes, which is a deliberate
+ * departure from every other injected component here. Those set their colours
+ * inline from tokens, and an inline style outranks any class — so a `hover:`
+ * or `focus-visible:` variant on them silently does nothing. The control the
+ * user is meant to reach for needs states that actually apply, so its palette
+ * lives here where a pseudo-class can reach it.
+ *
+ * Everything is scoped by the `apa-` prefix and lives inside the shadow root,
+ * so none of it can touch the host page.
+ *
+ * One consequence to know before editing: these rules are unlayered, and
+ * unlayered CSS beats anything in Tailwind's `utilities` layer regardless of
+ * order. A utility class added to one of these elements for a property set
+ * below will lose silently. Set it here instead.
+ */
+
+/* The segmented pill holding the action and the style caret. */
+.apa-improve-group {
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--apa-border);
+  border-radius: 9999px;
+  background: var(--apa-surface);
+  color: var(--apa-fg);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.06);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.apa-improve-group:hover {
+  border-color: var(--apa-accent);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.12);
+}
+
+.apa-improve-action,
+.apa-improve-caret {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 120ms ease;
+}
+
+.apa-improve-action {
+  padding: 0 0.625rem;
+}
+
+.apa-improve-caret {
+  padding: 0 0.375rem;
+  color: var(--apa-muted);
+  /* The only separator between the two halves of the pill. A gap would let the
+     host page's background show through and break the single-control read. */
+  border-left: 1px solid var(--apa-border);
+}
+
+.apa-improve-action:hover,
+.apa-improve-caret:hover:not(:disabled),
+.apa-improve-caret[aria-expanded='true'] {
+  background: var(--apa-accent-soft);
+  color: var(--apa-fg);
+}
+
+.apa-improve-action:active,
+.apa-improve-caret:active:not(:disabled) {
+  /* No transform: the control is absolutely positioned over someone else's
+     page, and a button that moves under the cursor invites a misclick into
+     the composer beneath it. */
+  background: var(--apa-accent-soft);
+  filter: brightness(0.97);
+}
+
+.apa-improve-caret:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/*
+ * Focus is drawn on the button, not the group, so keyboard users can tell
+ * which half of the pill they are on. `:focus-visible` rather than `:focus`
+ * keeps the ring off mouse clicks.
+ */
+.apa-improve-action:focus-visible,
+.apa-improve-caret:focus-visible,
+.apa-improve-item:focus-visible {
+  outline: 2px solid var(--apa-accent);
+  outline-offset: -2px;
+}
+
+/* The style menu. */
+.apa-improve-menu {
+  border: 1px solid var(--apa-border);
+  border-radius: 0.5rem;
+  background: var(--apa-bg);
+  color: var(--apa-fg);
+  box-shadow: var(--apa-shadow);
+}
+
+.apa-improve-item {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  padding: 0.5rem 0.625rem;
+  text-align: left;
+  color: inherit;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.apa-improve-item:hover,
+.apa-improve-item:focus-visible {
+  background: var(--apa-accent-soft);
+}
+
+.apa-improve-item[aria-checked='true'] {
+  background: var(--apa-surface);
+}
+
+.apa-improve-item[aria-checked='true']:hover,
+.apa-improve-item[aria-checked='true']:focus-visible {
+  background: var(--apa-accent-soft);
+}
+
+/*
+ * The working spinner.
+ *
+ * On-device inference was measured at a 10.1s p90, which is far too long for a
+ * control that only changes its label. The ring is the difference between
+ * "thinking" and "broken".
+ */
+@keyframes apa-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.apa-spin {
+  animation: apa-spin 900ms linear infinite;
+  transform-origin: center;
+}
+
+/*
+ * The global reduced-motion rule collapses durations to 0.01ms, which for an
+ * infinite rotation means spinning thousands of times a second — worse than
+ * the motion it was meant to remove. Stopped outright instead: the arc still
+ * reads as a busy indicator standing still next to "Improving…".
+ */
+@media (prefers-reduced-motion: reduce) {
+  .apa-spin {
+    animation: none !important;
   }
 }
