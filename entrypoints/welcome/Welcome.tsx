@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { browser } from 'wxt/browser';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { ApprovalModal } from '@/components/ApprovalModal';
+import { ModelDownload } from '@/components/ModelDownload';
 import { PrivacyStatement } from '@/components/PrivacyStatement';
 import { createPanelStore, type PanelState, type PanelStore } from '@/components/panel-store';
 import { detect } from '@/lib/detector/engine';
@@ -72,17 +72,25 @@ type Outcome =
  * time either is edited, and the stale one would be a lie — the same reason
  * `PrivacyStatement` is a shared component instead of duplicated copy.
  *
- * The download is deliberately NOT offered here. Settings owns it, along with
- * its progress and failure states; a second entry point would mean a second
- * copy of both, and this page is not where someone should be asked to spend
- * gigabytes.
+ * The download is offered here, not just linked to. This page was originally
+ * built to send the user to settings instead, on the reasoning that a second
+ * entry point meant a second copy of the progress and failure states and that
+ * onboarding was the wrong moment to ask for gigabytes. The first half was
+ * right and is answered by sharing `ModelDownload` rather than copying it.
+ * The second was wrong in the only case that matters: this page is exactly
+ * where someone learns the feature is missing, and telling them so while
+ * handing them a link somewhere else is the dead end the control exists to
+ * prevent. It is still a button and never automatic, so nobody spends a byte
+ * they did not choose to.
  */
 function ModelNote() {
   const [features, setFeatures] = useState<ModelFeatures | null>(null);
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     void getModelFeatures().then(setFeatures);
   }, []);
+
+  useEffect(refresh, [refresh]);
 
   // Nothing until the answer is known. A flash of "your browser cannot run
   // this" that resolves into "ready" reads as a fault in the product.
@@ -114,15 +122,9 @@ function ModelNote() {
       </p>
 
       {features.needsDownload && (
-        <button
-          type="button"
-          data-testid="welcome-model-settings"
-          onClick={() => void browser.runtime.openOptionsPage()}
-          className="mt-3 rounded-md border px-3 py-2 text-sm"
-          style={{ borderColor: 'var(--apa-border)', color: 'var(--apa-fg)' }}
-        >
-          Open settings to download it
-        </button>
+        <div className="mt-3">
+          <ModelDownload onSettled={refresh} />
+        </div>
       )}
     </section>
   );

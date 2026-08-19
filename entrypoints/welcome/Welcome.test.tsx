@@ -3,6 +3,7 @@ import { render } from 'preact';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { Welcome } from './Welcome';
 import { __resetCacheForTests } from '@/lib/storage';
+import { __resetForTests as resetSession } from '@/lib/model/session';
 import { detect } from '@/lib/detector/engine';
 
 /**
@@ -210,8 +211,15 @@ describe('the on-device model requirement', () => {
     });
   };
 
+  beforeEach(() => {
+    // The session is module-level and now reachable from this page, so a
+    // download in one test would satisfy the next one's availability check.
+    resetSession();
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
+    resetSession();
   });
 
   it('explains the absence instead of leaving a button that never appears', async () => {
@@ -241,7 +249,8 @@ describe('the on-device model requirement', () => {
 
     await waitFor(() => expect($('welcome-model-state')).not.toBeNull());
     expect($('welcome-model-note')!.textContent).not.toContain('Alt+Shift+I');
-    expect($('welcome-model-settings')).toBeNull();
+    // Nor a download, on a machine where downloading would change nothing.
+    expect($('model-download')).toBeNull();
   });
 
   it('says where the button is when the model is ready', async () => {
@@ -253,28 +262,34 @@ describe('the on-device model requirement', () => {
     expect(text).toContain('Improve');
     expect(text).toContain('Alt+Shift+I');
     // Already downloaded — offering to fetch it again would be nonsense.
-    expect($('welcome-model-settings')).toBeNull();
+    expect($('model-download')).toBeNull();
   });
 
-  it('sends the user to settings when a download is still needed', async () => {
+  it('offers the download here rather than sending the user elsewhere', async () => {
     /*
-     * Settings is the only place the download can start, so a note that reported
-     * the state without offering a way out would be a dead end.
+     * This page is where someone finds out the feature is missing. Reporting
+     * that and handing them a link to settings is a dead end dressed as a way
+     * out, so the real control renders here — the same component settings
+     * uses, not a copy of it.
      */
     installModel('downloadable');
     remount();
 
-    await waitFor(() => expect($('welcome-model-settings')).not.toBeNull());
+    await waitFor(() => expect($('model-download')).not.toBeNull());
     expect($('welcome-model-state')!.textContent).toContain('one-time');
+    expect($('model-download')!.textContent).toContain('Download');
+  });
 
-    // fake-browser has no implementation for this one, so it must be supplied
-    // rather than merely spied on — the real call throws otherwise.
-    const opened = vi
-      .spyOn(fakeBrowser.runtime, 'openOptionsPage')
-      .mockResolvedValue(undefined);
+  it('starts the download from the welcome page itself', async () => {
+    // The property that separates this from the link it replaced.
+    const create = vi.fn(async () => ({ prompt: async () => '', destroy: () => {} }));
+    vi.stubGlobal('LanguageModel', { availability: async () => 'downloadable', create });
+    remount();
 
-    $('welcome-model-settings')!.click();
-    expect(opened).toHaveBeenCalled();
+    await waitFor(() => expect($('model-download')).not.toBeNull());
+    $('model-download')!.click();
+
+    await waitFor(() => expect(create).toHaveBeenCalled());
   });
 
   it('never asks the user for a key or an account', async () => {

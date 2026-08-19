@@ -10,8 +10,9 @@ import {
 } from '@/lib/adapters/platforms';
 import { deleteAllData, getSettings, setSettings } from '@/lib/storage';
 import { clearErrors, formatForReport, getErrors, type LoggedError } from '@/lib/errors';
+import { ModelDownload } from '@/components/ModelDownload';
 import { PrivacyStatement } from '@/components/PrivacyStatement';
-import { ensureSession, getModelFeatures, type ModelFeatures } from '@/lib/model';
+import { getModelFeatures, type ModelFeatures } from '@/lib/model';
 import { STYLES, type RefinementStyle } from '@/lib/refine';
 import { removeFromAllowlist } from '@/lib/policy/allowlist';
 import type { Settings } from '@/lib/policy/schema';
@@ -186,10 +187,12 @@ function PlatformRow({ platform }: { platform: Platform }) {
  * browser lacks the model sees a feature described everywhere else and simply
  * missing from their screen.
  *
- * It is also the only place the one-time download can be started. `run()`
- * deliberately never triggers it — a hundreds-of-megabytes download is not
- * something a keystroke should start on a metered connection — so without a
- * control here the "needs downloading" state would be a dead end.
+ * It is one of the two places the one-time download can be started, the other
+ * being the welcome page. `run()` deliberately never triggers it — a
+ * hundreds-of-megabytes download is not something a keystroke should start on
+ * a metered connection — so any surface that reports "needs downloading" has
+ * to offer a way out, or the state is a dead end. Both share
+ * `ModelDownload` rather than the control existing twice.
  */
 function ImprovementSection({
   settings,
@@ -199,27 +202,12 @@ function ImprovementSection({
   update: (patch: Partial<Settings>) => Promise<void>;
 }) {
   const [features, setFeatures] = useState<ModelFeatures | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
-  const [downloadFailed, setDownloadFailed] = useState(false);
 
   const refresh = useCallback(() => {
     void getModelFeatures().then(setFeatures);
   }, []);
 
   useEffect(refresh, [refresh]);
-
-  // Called straight from the click, not after an await: Chrome requires user
-  // activation to start a model download, and awaiting first loses it.
-  const download = () => {
-    setDownloadFailed(false);
-    setProgress(0);
-
-    void ensureSession(({ loaded }) => setProgress(loaded)).then((session) => {
-      setProgress(null);
-      if (!session) setDownloadFailed(true);
-      refresh();
-    });
-  };
 
   if (!features) return null;
 
@@ -267,23 +255,9 @@ function ImprovementSection({
           {features.needsDownload && (
             <div className="rounded-lg border border-current/10 p-3">
               <p className="text-sm">{features.explanation}</p>
-              <button
-                type="button"
-                data-testid="model-download"
-                disabled={progress !== null}
-                onClick={download}
-                className="mt-2 rounded-md border border-current/20 px-3 py-1.5 text-sm disabled:opacity-60"
-              >
-                {progress === null
-                  ? 'Download the model'
-                  : `Downloading… ${Math.round(progress * 100)}%`}
-              </button>
-              {downloadFailed && (
-                <p className="mt-2 text-xs" data-testid="model-download-failed">
-                  The download did not finish. Everything else still works — secrets are
-                  detected and redacted without it.
-                </p>
-              )}
+              <div className="mt-2">
+                <ModelDownload onSettled={refresh} />
+              </div>
             </div>
           )}
 
