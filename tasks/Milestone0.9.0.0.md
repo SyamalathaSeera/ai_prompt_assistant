@@ -14,7 +14,7 @@ against documents we wrote; this milestone tests it against documents we did not
 
 ## Version Information
 
-**Current Version (at milestone start):** `0.6.0.4`
+**Current Version (at milestone start):** `0.6.0.5`
 **Target Version:** `0.9.0.5`
 **Git Branch:** `syamalatha-MMDDYY-0.9.0.0-ext`
 

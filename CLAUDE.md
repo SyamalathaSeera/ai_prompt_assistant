@@ -27,8 +27,8 @@ No backend, no server, no telemetry.
 ## Current Status
 
 **Phase**: Post-Milestone 0.6.0.0. Next up: 0.9.0.0, Beta
-**Last Updated**: 2026-08-14
-**Version**: 0.6.0.3
+**Last Updated**: 2026-08-18
+**Version**: 0.6.0.5
 
 ### Completed Milestones
 - **0.0.1.0** (2026-08-12): Project setup and scaffolding. WXT + React + TS + Tailwind

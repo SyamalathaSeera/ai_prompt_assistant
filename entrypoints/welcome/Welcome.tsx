@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { browser } from 'wxt/browser';
 import { ApprovalModal } from '@/components/ApprovalModal';
 import { PrivacyStatement } from '@/components/PrivacyStatement';
 import { createPanelStore, type PanelState, type PanelStore } from '@/components/panel-store';
 import { detect } from '@/lib/detector/engine';
+import { getModelFeatures, type ModelFeatures } from '@/lib/model';
 import { getSettings } from '@/lib/storage';
 import { detectTheme, observeTheme } from '@/components/theme';
 import type { HeldSubmission } from '@/lib/interception/controller';
@@ -49,6 +51,82 @@ type Outcome =
   | { kind: 'none' }
   | { kind: 'sent'; text: string; redacted: boolean }
   | { kind: 'dismissed' };
+
+/**
+ * What this machine can and cannot run.
+ *
+ * Prompt improvement is the one part of this product that can be simply
+ * **absent**. It needs Chrome's on-device model, which is not on every machine
+ * — and `getModelFeatures()` hides the composer button rather than disabling
+ * it, because a control that can never be enabled is an unanswered question in
+ * the interface.
+ *
+ * Hiding it silently has a cost this page is the right place to pay. Someone
+ * who read the store listing, installed, and then found no Improve button has
+ * no way to tell a missing feature from a broken one — and "it doesn't work"
+ * is exactly the review a launch cannot afford. Saying which of the three
+ * states they are in, before they go looking, turns a defect into a fact.
+ *
+ * The wording is taken from `getModelFeatures()` rather than restated here.
+ * Two copies of an explanation become two different explanations the first
+ * time either is edited, and the stale one would be a lie — the same reason
+ * `PrivacyStatement` is a shared component instead of duplicated copy.
+ *
+ * The download is deliberately NOT offered here. Settings owns it, along with
+ * its progress and failure states; a second entry point would mean a second
+ * copy of both, and this page is not where someone should be asked to spend
+ * gigabytes.
+ */
+function ModelNote() {
+  const [features, setFeatures] = useState<ModelFeatures | null>(null);
+
+  useEffect(() => {
+    void getModelFeatures().then(setFeatures);
+  }, []);
+
+  // Nothing until the answer is known. A flash of "your browser cannot run
+  // this" that resolves into "ready" reads as a fault in the product.
+  if (!features) return null;
+
+  return (
+    <section className="mt-10" data-testid="welcome-model-note">
+      <h2 className="text-sm font-medium">One part depends on your computer</h2>
+
+      <p className="mt-2 text-xs" style={{ color: 'var(--apa-muted)' }}>
+        The extension can also rewrite a rough prompt into a clearer one, using an AI
+        model that runs on your own machine — there is no key to enter and no account
+        to make. Everything you have just seen works without it.
+      </p>
+
+      <p
+        className="mt-2 text-xs"
+        data-testid="welcome-model-state"
+        style={{ color: 'var(--apa-muted)' }}
+      >
+        {features.canRunNow ? (
+          <>
+            Your browser can run it. Look for <strong>Improve</strong> above the message
+            box, or press Alt+Shift+I.
+          </>
+        ) : (
+          features.explanation
+        )}
+      </p>
+
+      {features.needsDownload && (
+        <button
+          type="button"
+          data-testid="welcome-model-settings"
+          onClick={() => void browser.runtime.openOptionsPage()}
+          className="mt-3 rounded-md border px-3 py-2 text-sm"
+          style={{ borderColor: 'var(--apa-border)', color: 'var(--apa-fg)' }}
+        >
+          Open settings to download it
+        </button>
+      )}
+    </section>
+  );
+}
 
 export function Welcome() {
   const [draft, setDraft] = useState(SAMPLE);
@@ -273,6 +351,14 @@ export function Welcome() {
           to give it.
         </p>
       </section>
+
+      {/*
+        Placed after the two steps and before the privacy statement: it is an
+        aside about this machine, not a step in the walkthrough, so it carries
+        no number. It sits ahead of the privacy section because "runs on your
+        own machine" is a claim that section then substantiates.
+      */}
+      <ModelNote />
 
       <section className="mt-10">
         <h2 className="text-sm font-medium">

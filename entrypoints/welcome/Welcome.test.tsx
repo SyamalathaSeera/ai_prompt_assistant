@@ -187,3 +187,109 @@ describe('honesty about what happens', () => {
     expect(composer.value).toContain(AWS_KEY);
   });
 });
+
+describe('the on-device model requirement', () => {
+  /*
+   * Prompt improvement is the only feature here that can be absent, and the
+   * composer button is hidden rather than disabled when it is. That leaves this
+   * page as the only thing standing between "my machine cannot run it" and "this
+   * extension is broken" — which is the difference between a shrug and a review.
+   *
+   * Remounts rather than relying on the outer render: availability is read in an
+   * effect with no dependencies, so the global must be stubbed before mount.
+   */
+  const remount = () => {
+    render(null, container);
+    render(<Welcome />, container);
+  };
+
+  const installModel = (availability: string) => {
+    vi.stubGlobal('LanguageModel', {
+      availability: async () => availability,
+      create: async () => ({ prompt: async () => '', destroy: () => {} }),
+    });
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('explains the absence instead of leaving a button that never appears', async () => {
+    // No stub: this is Firefox, an older Chrome, or hardware that cannot run it.
+    remount();
+
+    await waitFor(() => expect($('welcome-model-state')).not.toBeNull());
+    expect($('welcome-model-state')!.textContent).toContain('does not provide');
+  });
+
+  it('says protection still works without a model', async () => {
+    /*
+     * The load-bearing sentence. Someone told a feature is unavailable will
+     * reasonably assume the whole extension is, and uninstall something that is
+     * protecting them perfectly.
+     */
+    remount();
+
+    await waitFor(() => expect($('welcome-model-note')).not.toBeNull());
+    const text = $('welcome-model-note')!.textContent ?? '';
+    expect(text).toContain('without it');
+    expect(text).toContain('redacted');
+  });
+
+  it('does not promise a shortcut the machine cannot run', async () => {
+    remount();
+
+    await waitFor(() => expect($('welcome-model-state')).not.toBeNull());
+    expect($('welcome-model-note')!.textContent).not.toContain('Alt+Shift+I');
+    expect($('welcome-model-settings')).toBeNull();
+  });
+
+  it('says where the button is when the model is ready', async () => {
+    installModel('available');
+    remount();
+
+    await waitFor(() => expect($('welcome-model-state')).not.toBeNull());
+    const text = $('welcome-model-state')!.textContent ?? '';
+    expect(text).toContain('Improve');
+    expect(text).toContain('Alt+Shift+I');
+    // Already downloaded — offering to fetch it again would be nonsense.
+    expect($('welcome-model-settings')).toBeNull();
+  });
+
+  it('sends the user to settings when a download is still needed', async () => {
+    /*
+     * Settings is the only place the download can start, so a note that reported
+     * the state without offering a way out would be a dead end.
+     */
+    installModel('downloadable');
+    remount();
+
+    await waitFor(() => expect($('welcome-model-settings')).not.toBeNull());
+    expect($('welcome-model-state')!.textContent).toContain('one-time');
+
+    // fake-browser has no implementation for this one, so it must be supplied
+    // rather than merely spied on — the real call throws otherwise.
+    const opened = vi
+      .spyOn(fakeBrowser.runtime, 'openOptionsPage')
+      .mockResolvedValue(undefined);
+
+    $('welcome-model-settings')!.click();
+    expect(opened).toHaveBeenCalled();
+  });
+
+  it('never asks the user for a key or an account', async () => {
+    /*
+     * The question this note exists to pre-empt: "which AI is this, and where
+     * does my key go?" The answer has to be visible without opening settings.
+     */
+    installModel('available');
+    remount();
+
+    await waitFor(() => expect($('welcome-model-note')).not.toBeNull());
+    const text = $('welcome-model-note')!.textContent ?? '';
+    expect(text).toContain('your own machine');
+    expect(text).toContain('no key');
+    // Still no inputs anywhere on the page.
+    expect(container.querySelector('input')).toBeNull();
+  });
+});
