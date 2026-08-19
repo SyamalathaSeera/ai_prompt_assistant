@@ -37,6 +37,23 @@ function readRect(element: Element | null): Anchor | null {
 }
 
 /**
+ * How often a DOM mutation is allowed to trigger a re-measure.
+ *
+ * The observer below watches `document.body` with `subtree: true`, and the
+ * host page is a chat that writes a streaming reply into the DOM token by
+ * token. Unthrottled, that meant a `querySelector` and a
+ * `getBoundingClientRect` — a forced synchronous layout — on every animation
+ * frame for the entire length of a reply, and the page felt it.
+ *
+ * Half a second is safe because the mutation path is not what keeps the badge
+ * in place. Scroll and resize are handled by their own listeners, and the
+ * composer growing as the draft gets longer is handled by a `ResizeObserver`.
+ * All this one has left to catch is the composer being *replaced*, which
+ * happens on SPA navigation and is not something the user can outrun.
+ */
+const MUTATION_INTERVAL_MS = 500;
+
+/**
  * Whether two measurements are close enough to skip a re-render.
  *
  * Sub-pixel jitter is common as the composer grows; re-rendering on a
@@ -119,14 +136,37 @@ export function useAnchor(resolve: () => Element | null, deps: unknown[] = []): 
       });
     };
 
+    /*
+     * Mutations are throttled far harder than scroll or resize.
+     *
+     * Trailing rather than leading-only: the last mutation of a burst is the
+     * one that matters, and dropping it would strand the badge over a composer
+     * that has just been replaced. At most one measure per interval either
+     * way. See MUTATION_INTERVAL_MS for why this can afford to be slow.
+     */
+    let mutationTimer: ReturnType<typeof setTimeout> | undefined;
+    let lastMutationRun = 0;
+
+    const onMutation = () => {
+      if (disposed || mutationTimer !== undefined) return;
+
+      const wait = Math.max(0, MUTATION_INTERVAL_MS - (Date.now() - lastMutationRun));
+      mutationTimer = setTimeout(() => {
+        mutationTimer = undefined;
+        lastMutationRun = Date.now();
+        schedule();
+      }, wait);
+    };
+
     measure();
 
     window.addEventListener('resize', schedule);
     window.addEventListener('scroll', schedule, true);
 
-    // The composer resizes as the draft grows, and SPA navigation swaps it
-    // out entirely — neither fires resize or scroll.
-    const observer = new MutationObserver(schedule);
+    // SPA navigation swaps the composer out entirely, which fires neither
+    // resize nor scroll. Position changes are covered elsewhere, so this only
+    // has to notice a replacement — hence the throttle.
+    const observer = new MutationObserver(onMutation);
     observer.observe(document.body, { childList: true, subtree: true });
 
     let resizeObserver: ResizeObserver | undefined;
@@ -139,6 +179,7 @@ export function useAnchor(resolve: () => Element | null, deps: unknown[] = []): 
     return () => {
       disposed = true;
       if (frame !== undefined) cancelRaf(frame);
+      if (mutationTimer !== undefined) clearTimeout(mutationTimer);
       window.removeEventListener('resize', schedule);
       window.removeEventListener('scroll', schedule, true);
       observer.disconnect();

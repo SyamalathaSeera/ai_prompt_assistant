@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'preact/hooks';
-import { redact } from '@/lib/detector/engine';
+import { useEffect, useMemo, useState } from 'preact/hooks';
+import { detectAndRedact, redact } from '@/lib/detector/engine';
+import { ALL_RULES } from '@/lib/detector/rules';
 import { maskValue } from './mask';
 import type { RiskStore } from './risk-store';
 import { summarize } from './summarize';
-import { useAnchor, type Anchor } from './useAnchor';
+import type { Anchor } from './useAnchor';
 
 /**
  * The always-on risk indicator.
@@ -22,8 +23,15 @@ const GAP = 8;
 
 interface Props {
   store: RiskStore;
-  /** Resolves the composer. Called fresh each measure, since SPA nav swaps it. */
-  getComposer: () => Element | null;
+  /**
+   * The composer's current rect, measured once by `Panel` and shared.
+   *
+   * This used to run its own `useAnchor`, which meant a second
+   * `MutationObserver` over `document.body` and a second forced layout per
+   * frame — on a page that streams a reply into the DOM token by token. One
+   * measurement serves both surfaces; they are anchored to the same element.
+   */
+  anchor: Anchor | null;
 }
 
 /**
@@ -39,15 +47,13 @@ function positionFor(anchor: Anchor): { top: number; left: number } {
   return { top, left };
 }
 
-export function RiskIndicator({ store, getComposer }: Props) {
+export function RiskIndicator({ store, anchor }: Props) {
   const [snapshot, setSnapshot] = useState(() => store.get());
 
   useEffect(() => {
     setSnapshot(store.get());
     return store.subscribe(setSnapshot);
   }, [store]);
-
-  const anchor = useAnchor(getComposer, [snapshot.level]);
 
   // Nothing to say, or nowhere to say it.
   if (snapshot.level === 'none' || !anchor) return null;
@@ -86,32 +92,90 @@ export function RiskIndicator({ store, getComposer }: Props) {
         {snapshot.findings.length} {danger ? 'to redact' : 'to review'}
       </button>
 
-      {snapshot.open && <RiskPopover store={store} snapshot={snapshot} />}
+      {snapshot.open && (
+        <RiskPopover store={store} snapshot={snapshot} badgeTop={top} />
+      )}
     </div>
   );
 }
 
+/** Smallest the popover may be squeezed to before it just scrolls instead. */
+const MIN_POPOVER_HEIGHT = 180;
+
 function RiskPopover({
   store,
   snapshot,
+  badgeTop,
 }: {
   store: RiskStore;
   snapshot: ReturnType<RiskStore['get']>;
+  /** Viewport offset of the badge, so the panel can work out where it fits. */
+  badgeTop: number;
 }) {
   // Computed here rather than stored, so it always reflects the current draft.
-  const redacted = redact(snapshot.text, snapshot.findings).text;
+  const redacted = useMemo(
+    () => redact(snapshot.text, snapshot.findings).text,
+    [snapshot.text, snapshot.findings],
+  );
+
+  /*
+   * Everything the full rule set can find.
+   *
+   * Deliberately ignores both the disabled-rule settings and the allowlist,
+   * which is the entire difference between this and the button beside it. The
+   * findings above are what the live scan produced under the user's own
+   * settings; this is what the detector could produce if asked to stop being
+   * polite — the families they switched off because those are noisy day to
+   * day, and the values they allowlisted for the same reason.
+   *
+   * Overriding an allowlist entry is normally the wrong thing to do, and it is
+   * only acceptable here because it takes an explicit press. Nothing about
+   * this path runs on its own.
+   */
+  const everything = useMemo(
+    () => detectAndRedact(snapshot.text, {}, ALL_RULES).text,
+    [snapshot.text],
+  );
+
+  /*
+   * Only offered when it would actually do something different. Two buttons
+   * that produce identical text is a decision the user has to stop and make
+   * for no reason.
+   */
+  const findsMore = everything !== redacted;
+
+  /*
+   * Which way to open, and how tall it may be.
+   *
+   * The badge sits just above the composer, and the composer sits at the
+   * bottom of the window — so opening downward ran the panel off the screen
+   * and there was no way to reach the buttons at all. Whichever side has more
+   * room wins, and the panel is then capped to that room and scrolls inside
+   * itself. The cap matters on its own: a draft with a dozen findings would
+   * overflow even upward on a short window.
+   */
+  const viewport = typeof window === 'undefined' ? 0 : window.innerHeight;
+  const spaceAbove = badgeTop - GAP;
+  const spaceBelow = viewport - badgeTop - BADGE_HEIGHT - GAP * 2;
+  const openUp = spaceAbove > spaceBelow;
+  const maxHeight = Math.max(MIN_POPOVER_HEIGHT, openUp ? spaceAbove : spaceBelow);
 
   return (
     <div
       role="dialog"
       aria-label="Sensitive data in this prompt"
       data-testid="apa-risk-popover"
-      className="absolute right-0 mt-2 w-80 rounded-lg border p-3 text-sm shadow-xl"
+      data-direction={openUp ? 'up' : 'down'}
+      className="absolute right-0 w-80 overflow-y-auto rounded-lg border p-3 text-sm shadow-xl"
       style={{
         background: 'var(--apa-bg)',
         color: 'var(--apa-fg)',
         borderColor: 'var(--apa-border)',
         boxShadow: 'var(--apa-shadow)',
+        maxHeight: `${maxHeight}px`,
+        ...(openUp
+          ? { bottom: `${BADGE_HEIGHT + GAP}px` }
+          : { top: `${BADGE_HEIGHT + GAP}px` }),
       }}
       onKeyDown={(event) => {
         if (event.key !== 'Escape') return;
@@ -143,7 +207,18 @@ function RiskPopover({
         )}
       </ul>
 
-      <div className="mt-3 flex items-center gap-2">
+      {findsMore && (
+        <p
+          className="mt-3 text-xs"
+          data-testid="apa-risk-more-note"
+          style={{ color: 'var(--apa-muted)' }}
+        >
+          There is more here that your settings do not normally flag — personal
+          details, or families you have switched off.
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
           data-testid="apa-risk-apply"
@@ -153,6 +228,20 @@ function RiskPopover({
         >
           Redact now
         </button>
+
+        {findsMore && (
+          <button
+            type="button"
+            data-testid="apa-risk-apply-all"
+            onClick={() => store.applyRedaction(everything)}
+            title="Applies every rule, including ones you have turned off and values you have allowlisted"
+            className="rounded-md border px-2.5 py-1.5 text-xs font-medium"
+            style={{ borderColor: 'var(--apa-border)', color: 'var(--apa-fg)' }}
+          >
+            Redact everything
+          </button>
+        )}
+
         <button
           type="button"
           data-testid="apa-risk-close"

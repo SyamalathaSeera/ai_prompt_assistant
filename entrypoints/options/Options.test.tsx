@@ -7,6 +7,7 @@ import { __resetCacheForTests, getSettings, recordCatch, setSettings } from '@/l
 import { __resetForTests as __resetSessionForTests } from '@/lib/model/session';
 import { put } from '@/lib/vault';
 import { PRIVACY_CLAIMS } from '@/components/PrivacyStatement';
+import { STYLES } from '@/lib/refine';
 
 let container: HTMLElement;
 
@@ -347,11 +348,14 @@ describe('prompt improvement', () => {
     await ready();
     await waitFor(() => expect($('setting-refine-style')).not.toBeNull());
 
+    // Taken from the offered set rather than named, so retiring a style
+    // cannot leave this test asserting against one nobody can pick.
+    const chosen = STYLES[1]!.id;
     const select = $('setting-refine-style') as HTMLSelectElement;
-    select.value = 'concise';
+    select.value = chosen;
     select.dispatchEvent(new Event('change', { bubbles: true }));
 
-    await waitFor(async () => expect((await getSettings()).refineStyle).toBe('concise'));
+    await waitFor(async () => expect((await getSettings()).refineStyle).toBe(chosen));
   });
 
   it('tells the user the shortcut and how to change it', async () => {

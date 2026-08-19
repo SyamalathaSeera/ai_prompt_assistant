@@ -20,7 +20,7 @@ export {
   OUTPUT_LANGUAGE,
 } from './capability';
 export { getModelFeatures, isProtectionAvailable } from './features';
-export { destroySession, ensureSession, hasSession, run } from './session';
+export { destroySession, ensureSession, hasSession, run, warmSession } from './session';
 export type { ModelFeatures } from './features';
 export type {
   DownloadProgress,

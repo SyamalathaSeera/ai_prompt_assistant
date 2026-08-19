@@ -144,8 +144,8 @@ export function Panel({
         with a half-working panel that still looks operational.
       */}
       <ErrorBoundary onError={handleUiError}>
-        {riskStore && getComposer && !anyDialogOpen && (
-          <RiskIndicator store={riskStore} getComposer={getComposer} />
+        {riskStore && !anyDialogOpen && (
+          <RiskIndicator store={riskStore} anchor={anchor} />
         )}
 
         {refineStore && anchor && !anyDialogOpen && (

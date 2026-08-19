@@ -1,11 +1,12 @@
 import { run } from '../model';
 import type { Rule } from '../detector/types';
 import { evaluateRefinement } from './evaluate';
+import type { QualityProblem, QualityReport } from './evaluate';
 import { checkResponse, prepareForModel, restore } from './guard';
 import { buildRefinementPrompt, cleanResponse, DEFAULT_STYLE } from './prompt';
 import type { RefinementStyle } from './prompt';
 
-export { DEFAULT_STYLE, STYLES, getStyle } from './prompt';
+export { DEFAULT_STYLE, RETIRED_STYLES, STYLES, getStyle } from './prompt';
 export type { RefinementStyle, StyleDefinition } from './prompt';
 export {
   evaluateRefinement,
@@ -57,7 +58,19 @@ export type RefineFailure =
 
 export type RefineResult =
   | { ok: true; text: string; style: RefinementStyle }
-  | { ok: false; reason: RefineFailure; message: string };
+  | {
+      ok: false;
+      reason: RefineFailure;
+      message: string;
+      /**
+       * Which checks the rewrite failed, when the reason is `low-quality`.
+       *
+       * Carried rather than dropped so a caller can report more than "it did
+       * not work". The evaluator computes this either way; discarding it left
+       * the one useful fact about the failure on the floor.
+       */
+      problems?: readonly QualityProblem[];
+    };
 
 export interface RefineOptions {
   style?: RefinementStyle;
@@ -86,6 +99,62 @@ const MESSAGES: Record<RefineFailure, string> = {
 };
 
 /**
+ * What each check refuses, said in a way that tells the user something.
+ *
+ * The original message covered all six with one sentence, and "drifted from
+ * what you wrote" is true of every one of them without being informative about
+ * any. Someone who sees it twice has no idea whether to reword their draft,
+ * try a different style, or stop bothering — and the one person who could tell
+ * us which check is too strict in practice is the person watching it fire.
+ *
+ * Ordered by how much the answer changes what they would do next, because a
+ * rewrite usually breaks more than one rule at a time and only the first line
+ * gets read.
+ */
+const QUALITY_ORDER: readonly QualityProblem[] = [
+  'fabricated-specifics',
+  'too-long',
+  'intent-lost',
+  'constraints-dropped',
+  'preamble',
+  'too-short',
+];
+
+const QUALITY_MESSAGES: Record<QualityProblem, string> = {
+  'fabricated-specifics':
+    'The rewrite added details you never wrote, so it was discarded.',
+  'too-long':
+    'The model answered the prompt instead of rewriting it, so it was discarded.',
+  'intent-lost':
+    'The rewrite lost most of what you were asking about, so it was discarded.',
+  'constraints-dropped':
+    'The rewrite dropped the limits you set, so it was discarded.',
+  preamble:
+    'The rewrite came back wrapped in commentary, so it was discarded.',
+  'too-short': 'The rewrite came back too short to be a request, so it was discarded.',
+};
+
+/**
+ * Names the invented terms when that is what went wrong.
+ *
+ * Safe to show: these are words present in the suggestion and absent from the
+ * draft, and the model only ever saw redacted text — so a fabrication cannot
+ * be one of the user's own values. It is also the single most useful thing to
+ * put on screen, because "it made up EC2 and us-east-1" is checkable and
+ * "the rewrite drifted" is not.
+ */
+function describeQualityFailure(report: QualityReport): string {
+  const worst = QUALITY_ORDER.find((problem) => report.problems.includes(problem));
+  if (!worst) return MESSAGES['low-quality'];
+
+  const base = QUALITY_MESSAGES[worst];
+  if (worst !== 'fabricated-specifics' || report.invented.length === 0) return base;
+
+  const named = report.invented.slice(0, 3).join(', ');
+  return `The rewrite added details you never wrote (${named}), so it was discarded.`;
+}
+
+/**
  * Refines a draft prompt.
  *
  * Returns a result rather than throwing. Every failure leaves the user's draft
@@ -110,7 +179,9 @@ export async function refine(
   });
 
   // Step 2: ask the model, using only the redacted text.
-  const result = await run(buildRefinementPrompt(prepared.text, style), {
+  const hasPlaceholders = Object.keys(prepared.map).length > 0;
+
+  const result = await run(buildRefinementPrompt(prepared.text, style, { hasPlaceholders }), {
     signal: options.signal,
     timeoutMs: options.timeoutMs ?? REFINE_TIMEOUT_MS,
   });
@@ -149,7 +220,12 @@ export async function refine(
    */
   const quality = evaluateRefinement(trimmed, restored, style);
   if (!quality.ok) {
-    return { ok: false, reason: 'low-quality', message: MESSAGES['low-quality'] };
+    return {
+      ok: false,
+      reason: 'low-quality',
+      message: describeQualityFailure(quality),
+      problems: quality.problems,
+    };
   }
 
   // Offering an identical rewrite wastes the user's attention and makes the

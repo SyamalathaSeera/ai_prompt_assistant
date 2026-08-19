@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { warmSession } from '@/lib/model';
 import { STYLES, type RefinementStyle } from '@/lib/refine';
 import type { RefineStore } from './refine-store';
 import type { Anchor } from './useAnchor';
@@ -36,6 +37,9 @@ const SHORTCUT = 'Alt+Shift+I';
  * is a label over a description at 12px, plus the list's own padding.
  */
 const MENU_HEIGHT = STYLES.length * 46 + 8;
+
+/** Smallest the menu may be squeezed to before it just scrolls instead. */
+const MIN_MENU_HEIGHT = 120;
 
 interface Props {
   store: RefineStore;
@@ -208,6 +212,18 @@ export function RefineButton({ store, anchor, available }: Props) {
    */
   const openUp = top > MENU_HEIGHT + GAP;
 
+  /*
+   * Cap the menu to the room it actually has and let it scroll inside itself.
+   *
+   * Choosing a side is not enough on a short window, or with the browser
+   * zoomed: the last option ended up under the edge of the screen with no way
+   * to reach it. The direction above picks the better side; this makes sure
+   * everything on that side stays reachable either way.
+   */
+  const viewport = typeof window === 'undefined' ? 0 : window.innerHeight;
+  const room = openUp ? top - GAP : viewport - top - BUTTON_HEIGHT - GAP * 2;
+  const menuMaxHeight = Math.max(MIN_MENU_HEIGHT, room);
+
   const closePicker = () => {
     setPickerOpen(false);
     caret.current?.focus();
@@ -263,6 +279,17 @@ export function RefineButton({ store, anchor, available }: Props) {
           type="button"
           data-testid="apa-refine-button"
           onClick={() => (working ? store.cancel() : void store.start())}
+          /*
+           * Build the session while the pointer is on its way to the click.
+           *
+           * Roughly three seconds of every refinement is spent before the
+           * first word appears, and part of that is constructing the session.
+           * Hovering is as clear a statement of intent as this UI gets, and
+           * `warmSession` refuses to do anything that would cost the user
+           * bandwidth, so a hover that never becomes a click costs nothing.
+           */
+          onPointerEnter={() => void warmSession()}
+          onFocus={() => void warmSession()}
           aria-label={working ? 'Stop improving this prompt' : 'Improve this prompt'}
           aria-keyshortcuts={working ? undefined : SHORTCUT}
           title={
@@ -299,12 +326,13 @@ export function RefineButton({ store, anchor, available }: Props) {
           aria-label="How to improve this prompt"
           data-testid="apa-refine-styles"
           data-direction={openUp ? 'up' : 'down'}
-          className="apa-improve-menu absolute left-0 w-64 p-1"
-          style={
-            openUp
+          className="apa-improve-menu absolute left-0 w-64 overflow-y-auto p-1"
+          style={{
+            maxHeight: `${menuMaxHeight}px`,
+            ...(openUp
               ? { bottom: `${BUTTON_HEIGHT + GAP}px` }
-              : { top: `${BUTTON_HEIGHT + GAP}px` }
-          }
+              : { top: `${BUTTON_HEIGHT + GAP}px` }),
+          }}
           onKeyDown={onMenuKeyDown}
         >
           {STYLES.map((style, index) => {
@@ -351,14 +379,27 @@ export function RefineButton({ store, anchor, available }: Props) {
         untouched and they can carry on.
       */}
       {state.phase === 'failed' && (
+        /*
+         * Placed the same way the menu is, and for the same reason.
+         *
+         * As a plain sibling with a top margin this landed at exactly
+         * `composer.top` — the container sits 34px above the composer, the
+         * pill takes 26 of them and the margin the other 8 — so the note
+         * covered the first line of the draft it was reporting on. Pinned to
+         * whichever side has room instead.
+         */
         <p
           role="status"
           data-testid="apa-refine-message"
-          className="mt-2 max-w-xs rounded-md border px-2.5 py-1.5 text-xs shadow-sm"
+          data-direction={openUp ? 'up' : 'down'}
+          className="absolute left-0 w-64 rounded-md border px-2.5 py-1.5 text-xs shadow-sm"
           style={{
             background: 'var(--apa-bg)',
             color: 'var(--apa-muted)',
             borderColor: 'var(--apa-border)',
+            ...(openUp
+              ? { bottom: `${BUTTON_HEIGHT + GAP}px` }
+              : { top: `${BUTTON_HEIGHT + GAP}px` }),
           }}
         >
           {state.message}

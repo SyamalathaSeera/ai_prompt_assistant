@@ -5,7 +5,14 @@ import {
   isModelPossible,
   OUTPUT_LANGUAGE,
 } from './capability';
-import { __resetForTests, destroySession, ensureSession, hasSession, run } from './session';
+import {
+  __resetForTests,
+  destroySession,
+  ensureSession,
+  hasSession,
+  run,
+  warmSession,
+} from './session';
 
 /**
  * Model layer tests.
@@ -388,5 +395,73 @@ describe('output language', () => {
     // Chrome accepts a fixed set and rejects anything outside it, so a typo
     // here would be a runtime failure on every machine rather than a test.
     expect(['de', 'en', 'es', 'fr', 'ja']).toContain(OUTPUT_LANGUAGE);
+  });
+});
+
+describe('warming the session', () => {
+  /*
+   * Part of the fixed cost before a refinement's first word is constructing
+   * the session. Warming does not make that work cheaper, it moves it off the
+   * moment the user is watching a spinner.
+   */
+
+  it('builds the session before anyone asks for a refinement', async () => {
+    const { create } = installFakeModel();
+
+    await warmSession();
+
+    expect(create).toHaveBeenCalled();
+    expect(hasSession()).toBe(true);
+  });
+
+  it('never starts a download', async () => {
+    /*
+     * The one thing that would make this unacceptable. `ensureSession` calls
+     * `create()`, and `create()` will pull hundreds of megabytes if the model
+     * is not there — so a hover must check availability first. Downloading is
+     * a decision the user makes on the options page, not a side effect of
+     * moving a mouse.
+     */
+    const { create } = installFakeModel({ availability: 'downloadable' });
+
+    await warmSession();
+
+    expect(create).not.toHaveBeenCalled();
+    expect(hasSession()).toBe(false);
+  });
+
+  it('does nothing when there is no model at all', async () => {
+    await expect(warmSession()).resolves.toBeUndefined();
+    expect(hasSession()).toBe(false);
+  });
+
+  it('does not build a second session when one already exists', async () => {
+    const { create } = installFakeModel();
+
+    await warmSession();
+    await warmSession();
+    await warmSession();
+
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('swallows a failure rather than reporting one', async () => {
+    // A warm-up that failed changes only how long the next refinement takes,
+    // and `run()` builds the session itself when the time comes.
+    installFakeModel({ createThrows: true });
+
+    await expect(warmSession()).resolves.toBeUndefined();
+  });
+
+  it('leaves a later refinement working either way', async () => {
+    // The optimisation must not become a dependency.
+    installFakeModel({ createThrows: true });
+    await warmSession();
+
+    vi.unstubAllGlobals();
+    __resetForTests();
+    installFakeModel();
+
+    await expect(run('rewrite this')).resolves.toMatchObject({ ok: true });
   });
 });

@@ -5,6 +5,7 @@ import { createPanelStore } from './panel-store';
 import { createRiskStore, type RiskStore } from './risk-store';
 import { detect } from '@/lib/detector/engine';
 import { ALL_RULES } from '@/lib/detector/rules';
+import { DEFAULT_SETTINGS } from '@/lib/policy/defaults';
 
 const AWS_KEY = 'AKIA3TZ2MRSYNTHETIC7';
 const TEXT = `AWS_ACCESS_KEY_ID=${AWS_KEY}`;
@@ -33,14 +34,18 @@ function giveLayout(el: HTMLElement, rect: Partial<DOMRect> = {}) {
     }) as DOMRect;
 }
 
-function mount(config: Parameters<typeof createRiskStore>[0] = {}): void {
+function mount(
+  config: Parameters<typeof createRiskStore>[0] = {},
+  /** Where the composer sits, for the tests about fitting on screen. */
+  rect: Partial<DOMRect> = {},
+): void {
   container = document.createElement('div');
   document.body.appendChild(container);
 
   composer = document.createElement('div');
   composer.id = 'composer';
   document.body.appendChild(composer);
-  giveLayout(composer);
+  giveLayout(composer, rect);
 
   riskStore = createRiskStore(config);
 
@@ -282,5 +287,187 @@ describe('interaction with the modal', () => {
 
     await waitFor(() => expect($('apa-modal')).not.toBeNull());
     expect($('apa-risk-badge')).toBeNull();
+  });
+});
+
+describe('redacting everything', () => {
+  /*
+   * The second action, for the case the first cannot cover: the live scan
+   * honours the user's disabled rules and their allowlist, so the findings on
+   * screen are deliberately less than the detector can see. This is the way
+   * to ask for the rest, and it only ever happens on an explicit press.
+   */
+
+  const IP = '192.168.10.42';
+  const MIXED = `AWS_ACCESS_KEY_ID=${AWS_KEY} deployed to ${IP}`;
+
+  /** Sets risk the way the live scan does: under the shipped defaults. */
+  function setRiskWithDefaults(text: string): void {
+    const findings = detect(
+      text,
+      { disabledRuleIds: DEFAULT_SETTINGS.disabledRuleIds },
+      ALL_RULES,
+    );
+    const high = findings.filter((f) => f.tier === 'high').length;
+    riskStore.setRisk(high > 0 ? 'high' : 'low', findings, text);
+  }
+
+  const openPopover = async () => {
+    await waitFor(() => expect($('apa-risk-badge')).not.toBeNull());
+    $('apa-risk-badge')!.click();
+    await waitFor(() => expect($('apa-risk-popover')).not.toBeNull());
+  };
+
+  it('is offered when the settings are hiding something', async () => {
+    // IP addresses are default-off, because version strings look identical.
+    // That is the right default and a bad answer for the one draft that
+    // genuinely contains one.
+    mount({ onApplyRedaction: () => {} });
+    setRiskWithDefaults(MIXED);
+    await openPopover();
+
+    expect($('apa-risk-apply-all')).not.toBeNull();
+    expect($('apa-risk-more-note')).not.toBeNull();
+  });
+
+  it('takes out what the ordinary button leaves behind', async () => {
+    const onApplyRedaction = vi.fn();
+    mount({ onApplyRedaction });
+    setRiskWithDefaults(MIXED);
+    await openPopover();
+
+    $('apa-risk-apply')!.click();
+    const ordinary = onApplyRedaction.mock.calls[0]![0] as string;
+
+    // The normal path respects the setting, so the address survives.
+    expect(ordinary).not.toContain(AWS_KEY);
+    expect(ordinary).toContain(IP);
+
+    onApplyRedaction.mockClear();
+    setRiskWithDefaults(MIXED);
+    await openPopover();
+
+    $('apa-risk-apply-all')!.click();
+    const everything = onApplyRedaction.mock.calls[0]![0] as string;
+
+    expect(everything).not.toContain(AWS_KEY);
+    expect(everything).not.toContain(IP);
+  });
+
+  it('is not offered when it would change nothing', async () => {
+    /*
+     * Two buttons producing identical text is a decision the user has to stop
+     * and make for no reason.
+     */
+    mount({ onApplyRedaction: () => {} });
+    setRiskWithDefaults(`AWS_ACCESS_KEY_ID=${AWS_KEY}`);
+    await openPopover();
+
+    expect($('apa-risk-apply')).not.toBeNull();
+    expect($('apa-risk-apply-all')).toBeNull();
+    expect($('apa-risk-more-note')).toBeNull();
+  });
+
+  it('overrides a value the user allowlisted', async () => {
+    /*
+     * Normally the wrong thing to do — an allowlist entry is the user saying
+     * "this one is fine". It is acceptable only because reaching this button
+     * takes a deliberate press, and the label says everything.
+     */
+    const onApplyRedaction = vi.fn();
+    mount({ onApplyRedaction });
+
+    /*
+     * A second, un-allowlisted value is what puts the badge on screen at all.
+     * With only the allowlisted key present the live scan reports `none` and
+     * there is nothing to open — so a test that set up that state would be
+     * asserting against a screen no user can reach.
+     */
+    const text = `AWS_ACCESS_KEY_ID=${AWS_KEY} — ask sarah.chen@northwind-labs.io`;
+    const findings = detect(text, { isAllowlisted: (v) => v === AWS_KEY }, ALL_RULES);
+
+    expect(findings.map((f) => f.ruleId)).toEqual(['pii.email']);
+
+    riskStore.setRisk('low', findings, text);
+    await openPopover();
+
+    expect($('apa-risk-apply-all')).not.toBeNull();
+    $('apa-risk-apply-all')!.click();
+
+    await waitFor(() => expect(onApplyRedaction).toHaveBeenCalled());
+    expect(onApplyRedaction.mock.calls[0]![0] as string).not.toContain(AWS_KEY);
+  });
+});
+
+describe('fitting on the screen', () => {
+  /*
+   * The composer sits at the bottom of the window, and the badge sits just
+   * above it. A panel that always opened downward therefore opened into the
+   * few pixels below the badge and ran straight off the screen — the buttons
+   * were unreachable and there was nothing to scroll.
+   */
+
+  const openPopover = async () => {
+    await waitFor(() => expect($('apa-risk-badge')).not.toBeNull());
+    $('apa-risk-badge')!.click();
+    await waitFor(() => expect($('apa-risk-popover')).not.toBeNull());
+  };
+
+  it('opens upward when the composer is near the bottom', async () => {
+    mount({}, { top: 500, bottom: 560 });
+    setRisk();
+    await openPopover();
+
+    expect($('apa-risk-popover')!.dataset.direction).toBe('up');
+  });
+
+  it('opens downward when there is no room above', async () => {
+    mount({}, { top: 90, bottom: 150 });
+    setRisk();
+    await openPopover();
+
+    expect($('apa-risk-popover')!.dataset.direction).toBe('down');
+  });
+
+  it('caps its height to the room it has, and scrolls inside', async () => {
+    /*
+     * Choosing a side is not enough. A draft with a dozen findings overflows
+     * even the taller side on a short window, and the buttons are at the
+     * bottom of the panel — so the part that gets cut off is the part the
+     * whole thing exists for.
+     */
+    mount({}, { top: 500, bottom: 560 });
+    setRisk();
+    await openPopover();
+
+    const popover = $('apa-risk-popover')!;
+    const maxHeight = Number.parseFloat(popover.style.maxHeight);
+
+    expect(maxHeight).toBeGreaterThan(0);
+    expect(maxHeight).toBeLessThanOrEqual(window.innerHeight);
+    expect(popover.className).toContain('overflow-y-auto');
+  });
+
+  it('stays reachable even when the composer leaves almost no room', async () => {
+    // Squeezed from both sides, it still gets a usable minimum and scrolls
+    // rather than collapsing to nothing.
+    mount({}, { top: 40, bottom: 100 });
+    setRisk();
+    await openPopover();
+
+    const maxHeight = Number.parseFloat($('apa-risk-popover')!.style.maxHeight);
+    expect(maxHeight).toBeGreaterThanOrEqual(180);
+  });
+
+  it('anchors to the side it opened toward', async () => {
+    // Opening upward means pinning the bottom edge; leaving `top` set would
+    // put it back over the composer.
+    mount({}, { top: 500, bottom: 560 });
+    setRisk();
+    await openPopover();
+
+    const popover = $('apa-risk-popover')!;
+    expect(popover.style.bottom).not.toBe('');
+    expect(popover.style.top).toBe('');
   });
 });

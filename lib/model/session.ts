@@ -111,6 +111,31 @@ export function hasSession(): boolean {
 }
 
 /**
+ * Builds the session ahead of time, if one can be built for free.
+ *
+ * Every refinement measured on the real model carried roughly three seconds of
+ * cost before the first word appeared, and part of that is constructing the
+ * session. It is the same work either way — this just moves it off the moment
+ * the user is sitting watching a spinner, to the moment they showed they were
+ * about to ask.
+ *
+ * **Never downloads.** `ensureSession` calls `create()`, and `create()` will
+ * happily pull hundreds of megabytes if the model is not there yet — so this
+ * checks availability first and does nothing at all unless the answer is
+ * `available`. A hover must not cost someone their data allowance.
+ *
+ * Silent by design: it returns nothing and reports nothing. A warm-up that
+ * failed changes only how long the next refinement takes, and `run()` will
+ * build the session itself when the time comes.
+ */
+export async function warmSession(): Promise<void> {
+  if (session || creating) return;
+  if ((await getAvailability()) !== 'available') return;
+
+  await ensureSession();
+}
+
+/**
  * Runs one prompt.
  *
  * Returns a result rather than throwing, so callers are forced to handle
