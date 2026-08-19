@@ -11,6 +11,14 @@
  * win; one that is subtly different is a silent loss.
  */
 
+/**
+ * Every style the evaluator and the corpus know about.
+ *
+ * Wider than what is offered: `concise` and `beginner` are retired (see
+ * `RETIRED_STYLES`) and appear in no menu, but remain valid values so the
+ * graded corpus keeps its meaning and a stored setting never becomes an
+ * unrepresentable type.
+ */
 export type RefinementStyle =
   | 'clear'
   | 'concise'
@@ -44,21 +52,30 @@ export const STYLES: readonly StyleDefinition[] = [
       'length similar to the original.',
   },
   {
-    id: 'concise',
-    label: 'Shorter',
-    description: 'Cuts filler without losing any requirement.',
-    instruction:
-      'Remove filler, hedging, and repetition. Keep every requirement and constraint ' +
-      'the original states. Aim for noticeably fewer words.',
-  },
-  {
     id: 'detailed',
     label: 'More specific',
     description: 'Asks for the output format and detail the request implies.',
+    /*
+     * Says what to do, and does not repeat the restraint.
+     *
+     * The first version read "spell out what a complete answer should
+     * include, and the format it should take, where the original clearly
+     * implies these. Do not invent requirements the original does not imply."
+     * Two brakes on one accelerator — and the second was already a global
+     * rule sent with every single prompt. A small on-device model hears "add
+     * detail" once and "add nothing" twice, and settles it by barely editing,
+     * which is exactly what this style was reported as doing.
+     *
+     * Nothing is lost by dropping the duplicate: the global rule still
+     * forbids inventing facts, and `inventedSpecifics` in `evaluate.ts`
+     * rejects a fabrication mechanically whatever the instruction said. The
+     * last clause turns the restraint into an action instead of a
+     * prohibition, which is the one shape a small model reliably follows.
+     */
     instruction:
-      'Spell out what a complete answer should include, and the format it should take, ' +
-      'where the original clearly implies these. Do not invent requirements the ' +
-      'original does not imply.',
+      'Spell out what a complete answer must cover and the form it should take, such ' +
+      'as the steps, comparisons, or sections the request calls for. Where the request ' +
+      'leaves something open, ask for it explicitly rather than leaving it implied.',
   },
   {
     id: 'technical',
@@ -67,6 +84,33 @@ export const STYLES: readonly StyleDefinition[] = [
     instruction:
       'Structure as a technical request: state the goal, the relevant context, and the ' +
       'expected output. Use precise terms already present in the original.',
+  },
+];
+
+/**
+ * Styles that are no longer offered.
+ *
+ * Three names for one setting is a menu someone reads; five is a list they
+ * skim past, and "Shorter" and "Explain to me simply" were the two whose jobs
+ * a good "Clearer" rewrite largely already does.
+ *
+ * They are retired rather than deleted because `test/refine-corpus/` grades
+ * suggestions **per style**, and those judgements were made against these
+ * instructions. Deleting the definitions would leave the corpus quietly
+ * grading `clear` output under a `concise` label — the recorded evidence would
+ * still pass while no longer meaning anything. Nothing here reaches the UI:
+ * `STYLES` is what the picker and the options page render, and `STYLE_IDS` in
+ * `policy/migrate.ts` is derived from it, so a user who had one of these
+ * stored falls back to the default the next time settings are read.
+ */
+export const RETIRED_STYLES: readonly StyleDefinition[] = [
+  {
+    id: 'concise',
+    label: 'Shorter',
+    description: 'Cuts filler without losing any requirement.',
+    instruction:
+      'Remove filler, hedging, and repetition. Keep every requirement and constraint ' +
+      'the original states. Aim for noticeably fewer words.',
   },
   {
     id: 'beginner',
@@ -81,7 +125,11 @@ export const STYLES: readonly StyleDefinition[] = [
 export const DEFAULT_STYLE: RefinementStyle = 'clear';
 
 export function getStyle(id: RefinementStyle): StyleDefinition {
-  return STYLES.find((style) => style.id === id) ?? STYLES[0]!;
+  return (
+    STYLES.find((style) => style.id === id) ??
+    RETIRED_STYLES.find((style) => style.id === id) ??
+    STYLES[0]!
+  );
 }
 
 /**
@@ -109,8 +157,26 @@ export const PLACEHOLDER_RULE =
  *  - **No answering.** The input is a question; the output must remain a
  *    question. A model given a prompt to improve will often answer it instead.
  */
-export function buildRefinementPrompt(draft: string, style: RefinementStyle): string {
+export function buildRefinementPrompt(
+  draft: string,
+  style: RefinementStyle,
+  options: { hasPlaceholders?: boolean } = {},
+): string {
   const definition = getStyle(style);
+
+  /*
+   * The placeholder rule is only sent when there is a placeholder.
+   *
+   * It is the longest line here — 156 characters, roughly a fifth of the whole
+   * instruction — and on a draft containing no secrets it is a rule about
+   * nothing. Every character is prefill the on-device model pays for before it
+   * writes a word, on every refinement, on the machine the user is waiting at.
+   *
+   * Kept unconditionally would be the safer-looking choice and the wrong one:
+   * a rule the text cannot violate does not protect anything, and the cost is
+   * paid by the majority of drafts, which contain no secrets at all.
+   */
+  const { hasPlaceholders = true } = options;
 
   return [
     'You rewrite prompts that a person is about to send to an AI assistant.',
@@ -122,7 +188,7 @@ export function buildRefinementPrompt(draft: string, style: RefinementStyle): st
     '- Do not add facts, names, file paths, numbers, or requirements that are not in',
     '  the original.',
     '- Do not add a preamble, explanation, quotation marks, or markdown fences.',
-    `- ${PLACEHOLDER_RULE}`,
+    ...(hasPlaceholders ? [`- ${PLACEHOLDER_RULE}`] : []),
     `- ${definition.instruction}`,
     '',
     'Rewrite this prompt:',

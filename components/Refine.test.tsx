@@ -654,3 +654,49 @@ describe('the button reads as a control, not as a word', () => {
     for (const svg of svgs) expect(svg.getAttribute('aria-hidden')).toBe('true');
   });
 });
+
+describe('the style menu fits on the screen', () => {
+  const openPicker = async () => {
+    await waitFor(() => expect($('apa-refine-style')).not.toBeNull());
+    $('apa-refine-style')!.click();
+    await waitFor(() => expect($('apa-refine-styles')).not.toBeNull());
+  };
+
+  it('caps its height to the room it has, and scrolls inside', async () => {
+    /*
+     * Picking a side keeps the menu on screen at a normal window size. It does
+     * not survive a short window or a zoomed browser, where the last option
+     * ends up under the edge with no way to reach it.
+     */
+    installModel(() => SUGGESTION);
+    mount({ composerRect: { top: 600, bottom: 660 } });
+    await openPicker();
+
+    const menu = $('apa-refine-styles')!;
+    const maxHeight = Number.parseFloat(menu.style.maxHeight);
+
+    expect(maxHeight).toBeGreaterThan(0);
+    expect(maxHeight).toBeLessThanOrEqual(window.innerHeight);
+    expect(menu.className).toContain('overflow-y-auto');
+  });
+
+  it('keeps a usable minimum when squeezed from both sides', async () => {
+    installModel(() => SUGGESTION);
+    mount({ composerRect: { top: 40, bottom: 100 } });
+    await openPicker();
+
+    const maxHeight = Number.parseFloat($('apa-refine-styles')!.style.maxHeight);
+    expect(maxHeight).toBeGreaterThanOrEqual(120);
+  });
+
+  it('anchors to the side it opened toward', async () => {
+    installModel(() => SUGGESTION);
+    mount({ composerRect: { top: 600, bottom: 660 } });
+    await openPicker();
+
+    const menu = $('apa-refine-styles')!;
+    expect(menu.dataset.direction).toBe('up');
+    expect(menu.style.bottom).not.toBe('');
+    expect(menu.style.top).toBe('');
+  });
+});
