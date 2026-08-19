@@ -1,4 +1,4 @@
-import { getAvailability, getLanguageModel } from './capability';
+import { getAvailability, getLanguageModel, MODEL_OPTIONS } from './capability';
 import type { DownloadProgress, ModelResult, RunOptions } from './types';
 
 /**
@@ -80,6 +80,8 @@ export async function ensureSession(
   creating = (async () => {
     try {
       const created = (await create.call(model, {
+        // Same options the availability probe used. See MODEL_OPTIONS.
+        ...MODEL_OPTIONS,
         monitor: (monitor: EventTarget) => {
           monitor.addEventListener('downloadprogress', (event: Event) => {
             const { loaded } = event as Event & { loaded?: number };

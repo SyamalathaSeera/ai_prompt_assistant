@@ -18,10 +18,42 @@ import type { ModelAvailability, ModelCapability } from './types';
  * disappearing for anyone on an older build.
  */
 interface LanguageModelLike {
-  availability?: () => Promise<string>;
-  capabilities?: () => Promise<{ available?: string }>;
+  availability?: (options?: unknown) => Promise<string>;
+  capabilities?: (options?: unknown) => Promise<{ available?: string }>;
   create?: (options?: unknown) => Promise<unknown>;
 }
+
+/**
+ * The language we declare to Chrome.
+ *
+ * Chrome warns on any request that does not say what language it expects
+ * back, and asks for one of a fixed set. English is the honest answer for
+ * this build rather than a placeholder: the instructions in `lib/refine/` and
+ * `lib/clarify/` are written in English, and `evaluate.ts` judges a rewrite
+ * using English stemming. Declaring anything else would be claiming a
+ * capability the quality bar cannot actually check.
+ *
+ * Widening this is a real piece of work — the prompts and the evaluator move
+ * with it — not a matter of adding a code here.
+ */
+export const OUTPUT_LANGUAGE = 'en';
+
+/**
+ * Options every call into the Prompt API carries.
+ *
+ * Shared rather than written at each call site because Chrome's guidance is
+ * explicit that `availability()` must be asked the same question `create()`
+ * will ask. Two call sites that drifted apart would mean probing for one
+ * session and then building a different one, and the answer we showed the
+ * user would be about a session that never existed.
+ *
+ * Inputs are deliberately left undeclared. The user's draft is whatever they
+ * typed, and constraining it here would turn a prompt we could have attempted
+ * into a refusal at session creation.
+ */
+export const MODEL_OPTIONS = {
+  expectedOutputs: [{ type: 'text', languages: [OUTPUT_LANGUAGE] }],
+} as const;
 
 export function getLanguageModel(): LanguageModelLike | null {
   const global = globalThis as Record<string, unknown>;
@@ -66,10 +98,10 @@ export async function getAvailability(): Promise<ModelAvailability> {
 
   try {
     if (typeof model.availability === 'function') {
-      return normalise(await model.availability());
+      return normalise(await model.availability(MODEL_OPTIONS));
     }
     if (typeof model.capabilities === 'function') {
-      return normalise((await model.capabilities()).available);
+      return normalise((await model.capabilities(MODEL_OPTIONS)).available);
     }
   } catch {
     // A probe that throws is treated as unavailable. This is the expected path

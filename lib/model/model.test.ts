@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getAvailability, getCapability, isModelPossible } from './capability';
+import {
+  getAvailability,
+  getCapability,
+  isModelPossible,
+  OUTPUT_LANGUAGE,
+} from './capability';
 import { __resetForTests, destroySession, ensureSession, hasSession, run } from './session';
 
 /**
@@ -302,5 +307,86 @@ describe('degradation', () => {
 
       await expect(run('x')).resolves.toMatchObject({ ok: false });
     }
+  });
+});
+
+describe('output language', () => {
+  /*
+   * Chrome logs a warning for any Prompt API request that does not declare
+   * the language it expects back, and the warning appears in the console of
+   * whichever page the user is on — ours in the options and welcome pages,
+   * and *theirs* on chatgpt.com. A console warning on someone else's site,
+   * from an extension whose entire pitch is that it stays out of the way, is
+   * worth more than the two lines it costs to avoid.
+   */
+
+  it('declares the output language when probing availability', async () => {
+    const availability = vi.fn(async () => 'available');
+    vi.stubGlobal('LanguageModel', { availability, create: async () => ({}) });
+
+    await getAvailability();
+
+    expect(availability).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedOutputs: [{ type: 'text', languages: ['en'] }],
+      }),
+    );
+  });
+
+  it('declares the output language when creating the session', async () => {
+    const { create } = installFakeModel();
+
+    await ensureSession();
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedOutputs: [{ type: 'text', languages: ['en'] }],
+      }),
+    );
+  });
+
+  it('still wires up download progress alongside the language', async () => {
+    // The spread that added the options must not have displaced `monitor`.
+    const { create } = installFakeModel();
+    const progress: number[] = [];
+
+    await ensureSession(({ loaded }) => progress.push(loaded));
+
+    expect(create.mock.calls[0]?.[0]).toHaveProperty('monitor');
+    expect(progress).toContain(0.5);
+  });
+
+  it('asks availability the same question create will ask', async () => {
+    /*
+     * Chrome's own guidance: availability() must be passed the options the
+     * session will be built with. Probing one configuration and creating a
+     * different one would mean the state we showed the user described a
+     * session that was never going to exist.
+     */
+    let probed: { expectedOutputs?: unknown } | undefined;
+    let built: { expectedOutputs?: unknown } | undefined;
+
+    vi.stubGlobal('LanguageModel', {
+      availability: async (options: { expectedOutputs?: unknown }) => {
+        probed = options;
+        return 'available';
+      },
+      create: async (options: { expectedOutputs?: unknown }) => {
+        built = options;
+        return { prompt: async () => 'x', destroy: () => {} };
+      },
+    });
+
+    await getAvailability();
+    await ensureSession();
+
+    expect(probed?.expectedOutputs).toBeDefined();
+    expect(built?.expectedOutputs).toEqual(probed?.expectedOutputs);
+  });
+
+  it('declares a language Chrome supports', async () => {
+    // Chrome accepts a fixed set and rejects anything outside it, so a typo
+    // here would be a runtime failure on every machine rather than a test.
+    expect(['de', 'en', 'es', 'fr', 'ja']).toContain(OUTPUT_LANGUAGE);
   });
 });

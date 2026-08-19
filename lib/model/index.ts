@@ -12,7 +12,13 @@
  * true rather than needing careful qualification.
  */
 
-export { getAvailability, getCapability, isModelPossible } from './capability';
+export {
+  getAvailability,
+  getCapability,
+  isModelPossible,
+  MODEL_OPTIONS,
+  OUTPUT_LANGUAGE,
+} from './capability';
 export { getModelFeatures, isProtectionAvailable } from './features';
 export { destroySession, ensureSession, hasSession, run } from './session';
 export type { ModelFeatures } from './features';
