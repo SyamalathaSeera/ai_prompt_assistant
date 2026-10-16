@@ -471,3 +471,15 @@ describe('fitting on the screen', () => {
     expect(popover.style.top).toBe('');
   });
 });
+
+
+describe('redact-now persistence failures', () => {
+  it('keeps the warning open and reports failure without changing the draft', async () => {
+    mount({ onApplyRedaction: async () => { throw new Error('synthetic storage failure'); } });
+    riskStore.setRisk('high', detect(TEXT), TEXT);
+    riskStore.open();
+    riskStore.applyRedaction('[REDACTED_AWS_ACCESS_KEY_ID_1]');
+    await waitFor(() => expect(container.querySelector('[role="alert"]')?.textContent).toContain('draft was not changed'));
+    expect(riskStore.get().open).toBe(true);
+  });
+});

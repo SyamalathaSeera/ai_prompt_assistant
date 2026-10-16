@@ -1,3 +1,4 @@
+import { connectVaultForTests } from '@/lib/vault/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'preact';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
@@ -24,6 +25,7 @@ const ready = () => waitFor(() => expect($('setting-enabled')).not.toBeNull());
 
 beforeEach(() => {
   fakeBrowser.reset();
+  connectVaultForTests();
   __resetCacheForTests();
   document.body.innerHTML = '';
 });

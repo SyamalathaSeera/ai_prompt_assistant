@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { detect, detectAndRedact, formatPlaceholder, redact } from './engine';
 import type { Rule } from './types';
+import { githubToken, githubFineGrainedToken } from './rules/vendor';
 
 /**
  * Engine tests.
@@ -319,5 +320,20 @@ describe('robustness', () => {
 
   it('handles text that is only whitespace or punctuation', () => {
     expect(detect('   \n\t  ---  ', {}, [AWS, WORD])).toEqual([]);
+  });
+});
+
+
+describe('shared placeholder labels', () => {
+  it.each(['bracketed', 'dummy'] as const)('keeps mixed GitHub values distinct with %s placeholders', (placeholderStyle) => {
+    const classic = 'ghp_' + 'Ab3Cd4Ef5Gh6Ij7Kl8Mn9Op0Qr1St2Uv3Wx4';
+    const fine = 'github_pat_' + 'Ab3Cd4Ef5Gh6Ij7Kl8Mn9Op0Qr1St2Uv3Wx4Yz5'.repeat(2);
+    const text = `${classic} ${fine} ${classic}`;
+    const findings = detect(text, { placeholderStyle }, [githubToken, githubFineGrainedToken]);
+    expect(findings).toHaveLength(3);
+    expect(new Set(findings.map((f) => f.placeholder)).size).toBe(2);
+    const result = redact(text, findings);
+    expect(Object.keys(result.map)).toHaveLength(2);
+    expect(findings.every((f) => result.map[f.placeholder] === text.slice(f.start, f.end))).toBe(true);
   });
 });

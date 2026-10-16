@@ -190,6 +190,7 @@ function RiskPopover({
         submit.
       </p>
 
+      {snapshot.error && <p role="alert" className="mt-2 text-xs">{snapshot.error}</p>}
       <ul className="mt-2 space-y-1" data-testid="apa-risk-items">
         {[...new Map(snapshot.findings.map((f) => [f.placeholder, f])).values()].map(
           (finding) => (
@@ -222,6 +223,7 @@ function RiskPopover({
         <button
           type="button"
           data-testid="apa-risk-apply"
+          disabled={snapshot.applying}
           onClick={() => store.applyRedaction(redacted)}
           className="rounded-md px-2.5 py-1.5 text-xs font-medium"
           style={{ background: 'var(--apa-accent)', color: 'var(--apa-accent-fg)' }}
@@ -233,6 +235,7 @@ function RiskPopover({
           <button
             type="button"
             data-testid="apa-risk-apply-all"
+            disabled={snapshot.applying}
             onClick={() => store.applyRedaction(everything)}
             title="Applies every rule, including ones you have turned off and values you have allowlisted"
             className="rounded-md border px-2.5 py-1.5 text-xs font-medium"

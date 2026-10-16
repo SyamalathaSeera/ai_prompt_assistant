@@ -38,7 +38,7 @@ export interface HeldSubmission {
   /** Send exactly what the user typed, unchanged. */
   sendOriginal: () => void;
   /** Replace the composer contents, then send. */
-  sendReplacement: (replacement: string) => void;
+  sendReplacement: (replacement: string) => void | Promise<void>;
   /** Abandon the submission and leave the composer untouched for editing. */
   cancel: () => void;
 }

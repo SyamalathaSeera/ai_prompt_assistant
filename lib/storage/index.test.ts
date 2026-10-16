@@ -1,3 +1,4 @@
+import { connectVaultForTests } from '../vault/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
@@ -19,6 +20,7 @@ const COUNTERS_KEY = 'apa:counters';
 
 beforeEach(() => {
   fakeBrowser.reset();
+  connectVaultForTests();
   __resetCacheForTests();
 });
 

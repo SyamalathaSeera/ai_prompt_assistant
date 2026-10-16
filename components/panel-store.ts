@@ -31,6 +31,7 @@ export type PanelState =
       /** Working copy while editing. */
       draft: string;
       phase: Phase;
+      error?: string;
     };
 
 export interface PanelStoreConfig {
@@ -113,20 +114,28 @@ export function createPanelStore(config: PanelStoreConfig = {}): PanelStore {
    * that has already been resolved — both of which would call `release()`
    * twice and send the prompt twice.
    */
-  const finish = (action: (active: Extract<PanelState, { kind: 'active' }>) => void) => {
+  const finish = (action: (active: Extract<PanelState, { kind: 'active' }>) => void | Promise<void>) => {
     if (state.kind !== 'active') return;
     if (state.phase === 'applying') return;
 
     const active = state;
     set({ ...active, phase: 'applying' });
 
+    const applying = state;
     try {
-      action(active);
-    } finally {
-      // Always return to idle. If the action threw, the interception
-      // controller's own fail-open path releases the submission; leaving the
-      // modal open over a released prompt would be worse than closing it.
+      const result = action(active);
+      if (result instanceof Promise) {
+        void result.then(() => {
+          if (state === applying) set(IDLE);
+        }, () => {
+          if (state === applying) set({ ...active, error: 'Could not save redaction safely. Nothing was sent. Retry, edit, or cancel.' });
+        });
+      } else {
+        set(IDLE);
+      }
+    } catch (error) {
       set(IDLE);
+      throw error;
     }
   };
 

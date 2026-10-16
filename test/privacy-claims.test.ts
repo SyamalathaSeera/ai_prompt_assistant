@@ -150,7 +150,7 @@ describe('"what it stores"', () => {
   it('promises real values are memory-only, and uses session storage for them', () => {
     expect(claim('stored')).toMatch(/memory only/i);
 
-    const vault = readFileSync(resolve(root, 'lib/vault/index.ts'), 'utf8');
+    const vault = readFileSync(resolve(root, 'lib/vault/service.ts'), 'utf8');
     expect(vault).toContain('storage.session');
     expect(vault).not.toContain('storage.local');
   });
