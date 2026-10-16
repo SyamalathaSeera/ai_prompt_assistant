@@ -4,5 +4,11 @@
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "jsxImportSource": "preact"
-  }
+  },
+  "exclude": [
+    "node_modules",
+    ".output",
+    "packages",
+    "scripts"
+  ]
 }

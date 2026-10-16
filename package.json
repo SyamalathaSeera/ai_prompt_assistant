@@ -23,7 +23,10 @@
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:report": "playwright show-report",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "build:security": "node scripts/build-security.mjs",
+    "test:security": "vitest run --config packages/agent-security/vitest.config.ts",
+    "typecheck:security": "tsc --project packages/detector/tsconfig.json --noEmit && tsc --project packages/agent-security/tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -40,7 +43,9 @@
     "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.10",
     "web-ext": "^10.5.0",
-    "wxt": "^0.21.3"
+    "wxt": "^0.21.3",
+    "vite": "8.2.1",
+    "@types/node": "26.2.0"
   },
   "dependencies": {
     "preact": "^10.29.8"

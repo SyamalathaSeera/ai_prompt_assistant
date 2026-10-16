@@ -12,3 +12,5 @@ PRD.md
 TASKS.md
 tasks/
 bugs/
+
+packages/*/dist/

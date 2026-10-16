@@ -14,7 +14,7 @@ import autoImports from './.wxt/eslint-auto-imports.mjs';
  */
 export default tseslint.config(
   {
-    ignores: ['.output/**', '.wxt/**', 'node_modules/**', 'coverage/**', 'stats*.json'],
+    ignores: ['.output/**', '.wxt/**', 'node_modules/**', 'coverage/**', 'stats*.json', 'packages/*/dist/**'],
   },
 
   js.configs.recommended,
@@ -160,5 +160,16 @@ export default tseslint.config(
     },
   },
 
+  {
+    files: ['scripts/**/*.mjs', 'packages/**/*.ts'],
+    languageOptions: { globals: globals.node },
+  },
+  {
+    files: ['entrypoints/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'lib/vault/**/*.ts', 'lib/interception/**/*.ts', 'lib/storage/**/*.ts', 'lib/adapters/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/*.test.tsx'],
+    rules: { 'no-restricted-imports': ['error', { patterns: [
+      { group: ['**/packages/**', '@ai-prompt-assistant/*', '*langchain*', '*langgraph*', '*langsmith*', 'node:*'], message: 'Extension boundary: no SDK, agent framework or Node runtime imports.' },
+    ] }] },
+  },
   prettier,
 );

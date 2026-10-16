@@ -43,3 +43,6 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+
+# Standalone TypeScript package builds
+packages/*/dist/
