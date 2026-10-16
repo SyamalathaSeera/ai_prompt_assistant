@@ -86,6 +86,7 @@ export function ApprovalModal({ state, store }: Props) {
           Found {summarize(submission.blocking)}. Nothing has been sent.
         </p>
 
+        {state.error && <p role="alert" className="mt-2 text-sm">{state.error}</p>}
         <FindingList state={state} store={store} />
 
         {phase === 'editing' ? (

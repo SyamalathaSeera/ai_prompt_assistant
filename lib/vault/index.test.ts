@@ -1,3 +1,4 @@
+import { connectVaultForTests } from './testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { list, MAX_ENTRIES, purge, put, putAll, resolve, size, TTL_MS } from './index';
@@ -9,6 +10,7 @@ const SECRET = 'AKIA3TZ2MRSYNTHETIC7';
 
 beforeEach(() => {
   fakeBrowser.reset();
+  connectVaultForTests();
 });
 
 describe('storing and resolving', () => {
@@ -36,11 +38,11 @@ describe('storing and resolving', () => {
     expect(await size()).toBe(0);
   });
 
-  it('overwrites on repeat', async () => {
+  it('refuses to overwrite an existing mapping', async () => {
     await put(PLACEHOLDER, 'first', CHAT_A);
-    await put(PLACEHOLDER, 'second', CHAT_A);
+    await expect(put(PLACEHOLDER, 'second', CHAT_A)).rejects.toThrow('Session vault unavailable');
 
-    expect(await resolve(PLACEHOLDER, CHAT_A)).toBe('second');
+    expect((await resolve(PLACEHOLDER, CHAT_A)) === 'first').toBe(true);
     expect(await size()).toBe(1);
   });
 });
@@ -95,9 +97,9 @@ describe('eviction', () => {
     for (let i = 0; i < MAX_ENTRIES + 50; i += 1) {
       entries[`[REDACTED_X_${i}]`] = `value-${i}`;
     }
-    await putAll(entries, CHAT_A);
+    await expect(putAll(entries, CHAT_A)).rejects.toThrow('Session vault unavailable');
 
-    expect(await size()).toBe(MAX_ENTRIES);
+    expect(await size()).toBe(0);
   });
 
   it('evicts least recently accessed, not oldest', async () => {
@@ -241,11 +243,11 @@ describe('resilience', () => {
     fakeBrowser.storage.session.get = original;
   });
 
-  it('does not throw when a write fails', async () => {
+  it('reports a failed write without leaking the storage error', async () => {
     const original = fakeBrowser.storage.session.set;
     fakeBrowser.storage.session.set = () => Promise.reject(new Error('quota'));
 
-    await expect(put(PLACEHOLDER, SECRET, CHAT_A)).resolves.toBeUndefined();
+    await expect(put(PLACEHOLDER, SECRET, CHAT_A)).rejects.toThrow('Session vault unavailable');
 
     fakeBrowser.storage.session.set = original;
   });

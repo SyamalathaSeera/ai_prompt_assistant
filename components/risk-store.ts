@@ -17,6 +17,8 @@ export interface RiskSnapshot {
   text: string;
   /** Whether the user has opened the details popover. */
   open: boolean;
+  error?: string;
+  applying?: boolean;
 }
 
 export interface RiskStoreConfig {
@@ -27,7 +29,7 @@ export interface RiskStoreConfig {
    * they send it, on their own initiative rather than in response to being
    * interrupted.
    */
-  onApplyRedaction?: (text: string) => void;
+  onApplyRedaction?: (text: string) => void | Promise<void>;
 }
 
 export interface RiskStore {
@@ -82,8 +84,21 @@ export function createRiskStore(config: RiskStoreConfig = {}): RiskStore {
     },
 
     applyRedaction(redacted) {
-      config.onApplyRedaction?.(redacted);
-      set({ ...snapshot, open: false });
+      if (snapshot.applying) return;
+      const active = snapshot;
+      const result = config.onApplyRedaction?.(redacted);
+      if (result instanceof Promise) {
+        set({ ...active, applying: true });
+        const applying = snapshot;
+        void result.then(() => {
+          if (snapshot === applying) set({ ...active, open: false });
+        }, () => {
+          // Keep the warning visible even if a live scan ran while storage was pending.
+          set({ ...snapshot, applying: false, open: true, error: 'Could not save redaction safely. The draft was not changed.' });
+        });
+      } else {
+        set({ ...snapshot, open: false });
+      }
     },
   };
 }

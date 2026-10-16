@@ -14,7 +14,8 @@ import { createLiveScanner } from '@/lib/interception/live-scan';
 import { createPasteWatcher } from '@/lib/interception/paste';
 import { detect, redact } from '@/lib/detector/engine';
 import { findPlaceholders, hydrate, needsHydration } from '@/lib/rehydrate';
-import { putAll, resolve as resolveFromVault } from '@/lib/vault';
+import { resolve as resolveFromVault } from '@/lib/vault';
+import { prepareRedaction } from '@/lib/vault/prepare';
 import { getSettingsSync, initSettings, recordCatch, recordHealth, setSettings } from '@/lib/storage';
 import { createHealthMonitor } from '@/lib/health';
 import { recordError } from '@/lib/errors';
@@ -108,28 +109,7 @@ export default defineContentScript({
     /** Conversation scope for vault entries. See ADR-005. */
     const conversationId = () => adapter.getConversationId?.() ?? 'unsaved';
 
-    /**
-     * Remembers what a redaction replaced, so the reply can be restored.
-     *
-     * Called at the moment of sending, since that is when we know both the
-     * placeholder and the value it stood for.
-     */
-    const rememberRedaction = (original: string, replacement: string) => {
-      try {
-        if (!getSettings().rehydrateResponses) return;
-        // Re-derive the mapping from the text actually being sent, rather than
-        // trusting the UI's copy of it — the user may have edited by hand.
-        const findings = detect(original, {}, undefined);
-        const { map } = redact(original, findings);
-
-        const used = Object.fromEntries(
-          Object.entries(map).filter(([placeholder]) => replacement.includes(placeholder)),
-        );
-        void putAll(used, conversationId());
-      } catch {
-        /* failing to remember costs re-hydration, never the submission */
-      }
-    };
+    let submissionGeneration = 0;
 
     /**
      * Prompt refinement.
@@ -186,11 +166,20 @@ export default defineContentScript({
     const riskStore = createRiskStore({
       // Rewrites the composer without submitting, so the user can clean up a
       // draft on their own initiative rather than only when interrupted.
-      onApplyRedaction: (text) => {
+      onApplyRedaction: async (text) => {
         const composer = adapter.getComposer();
-        if (!composer) return;
-        rememberRedaction(adapter.getText(composer), text);
-        adapter.setText(composer, text);
+        if (!composer) throw new Error('Composer unavailable');
+        const original = adapter.getText(composer);
+        const snapshot = riskStore.get();
+        if (snapshot.text !== original) throw new Error('Draft changed');
+        const findings = redact(original, snapshot.findings).text === text
+          ? snapshot.findings : detect(original);
+        const scope = conversationId();
+        const prepared = await prepareRedaction(original, text, findings, scope, getSettings().rehydrateResponses);
+        if (conversationId() !== scope || adapter.getComposer() !== composer || adapter.getText(composer) !== original) {
+          throw new Error('Draft changed');
+        }
+        adapter.setText(composer, prepared);
       },
     });
 
@@ -388,6 +377,8 @@ export default defineContentScript({
       adapter,
       getSettings,
       onHeld: (submission) => {
+        const generation = ++submissionGeneration;
+        const scope = conversationId();
         void (async () => {
           /*
            * No UI, no holding.
@@ -413,13 +404,21 @@ export default defineContentScript({
 
           for (const finding of blocking) void recordCatch(finding.ruleId);
 
+          const findings = await applyAllowlist(submission.text, submission.findings);
+          if (generation !== submissionGeneration || scope !== conversationId()) return;
           store.present({
             ...submission,
             blocking,
-            findings: await applyAllowlist(submission.text, submission.findings),
-            sendReplacement: (replacement) => {
-              rememberRedaction(submission.text, replacement);
-              submission.sendReplacement(replacement);
+            findings,
+            sendReplacement: async (replacement) => {
+              const composer = adapter.getComposer();
+              if (!composer || adapter.getText(composer) !== submission.text) throw new Error('Draft changed');
+              const prepared = await prepareRedaction(submission.text, replacement, findings, scope, getSettings().rehydrateResponses);
+              if (generation !== submissionGeneration || scope !== conversationId() ||
+                  adapter.getComposer() !== composer || adapter.getText(composer) !== submission.text) {
+                throw new Error('Draft changed');
+              }
+              await submission.sendReplacement(prepared);
             },
           });
         })();
@@ -455,7 +454,7 @@ export default defineContentScript({
 
             // Re-check: the reply may have streamed further while we awaited
             // the vault, and React may have replaced the nodes underneath us.
-            if (!turn.isConnected) return;
+            if (!turn.isConnected || scope !== conversationId() || !getSettings().rehydrateResponses) return;
             hydrate(turn, resolved);
           } catch {
             /* re-hydration failing leaves placeholders on screen — which is

@@ -186,7 +186,7 @@ function resolveOverlaps(candidates: readonly Candidate[]): Candidate[] {
 }
 
 /**
- * Assigns placeholder tokens, numbering distinct values per rule.
+ * Assigns placeholder tokens, numbering distinct values per rendered token label.
  *
  * The same secret appearing three times in a prompt collapses to one
  * placeholder, so the model sees a consistent identifier and the user reviews
@@ -195,24 +195,29 @@ function resolveOverlaps(candidates: readonly Candidate[]): Candidate[] {
 function assignPlaceholders(
   candidates: readonly Candidate[],
   style: PlaceholderStyle,
+  text: string,
 ): Finding[] {
   // Nested rather than a composite string key: no separator character has to
   // be assumed absent from secret values, so two rules cannot collide.
-  const indexByRuleAndValue = new Map<string, Map<string, number>>();
-  const countByRule = new Map<string, number>();
+  const indexByTokenAndValue = new Map<string, Map<string, number>>();
+  const countByToken = new Map<string, number>();
+  const reserved = new Set(text.match(placeholderPattern()) ?? []);
 
   return candidates.map((candidate) => {
     const { rule, value, start, end } = candidate;
-    let seen = indexByRuleAndValue.get(rule.id);
+    const token = style === 'dummy' ? rule.token.toLowerCase() : rule.token;
+    let seen = indexByTokenAndValue.get(token);
     if (!seen) {
       seen = new Map<string, number>();
-      indexByRuleAndValue.set(rule.id, seen);
+      indexByTokenAndValue.set(token, seen);
     }
 
     let index = seen.get(value);
     if (index === undefined) {
-      index = (countByRule.get(rule.id) ?? 0) + 1;
-      countByRule.set(rule.id, index);
+      index = (countByToken.get(token) ?? 0) + 1;
+      while (reserved.has(formatPlaceholder(rule.token, index, style))) index += 1;
+      reserved.add(formatPlaceholder(rule.token, index, style));
+      countByToken.set(token, index);
       seen.set(value, index);
     }
 
@@ -267,6 +272,7 @@ export function detect(
   return assignPlaceholders(
     resolveOverlaps(candidates),
     options.placeholderStyle ?? 'bracketed',
+    text,
   );
 }
 

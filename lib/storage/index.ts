@@ -1,3 +1,4 @@
+import { clearSession } from '../vault';
 import { browser } from 'wxt/browser';
 import { COUNTER_HISTORY_DAYS, DEFAULT_COUNTERS, DEFAULT_SETTINGS } from '../policy/defaults';
 import { migrateSettings } from '../policy/migrate';
@@ -205,7 +206,7 @@ export async function deleteAllData(): Promise<void> {
     /* nothing further we can safely do */
   }
   try {
-    await browser.storage.session.clear();
+    await clearSession();
   } catch {
     /* likewise */
   }

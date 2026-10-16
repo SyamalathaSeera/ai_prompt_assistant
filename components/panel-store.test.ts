@@ -223,3 +223,36 @@ describe('no state strands a submission', () => {
     expect(cancelledDuringSend).toBe(0);
   });
 });
+
+
+describe('acknowledged redaction persistence', () => {
+  it('keeps the modal busy and prevents double send until persistence succeeds', async () => {
+    const store = createPanelStore();
+    const submission = makeSubmission();
+    let complete!: () => void;
+    const send = vi.fn(() => new Promise<void>((resolve) => { complete = resolve; }));
+    submission.sendReplacement = send;
+    store.present(submission);
+    store.sendRedacted();
+    store.sendRedacted();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(store.get().kind === 'active' && store.get()).toMatchObject({ phase: 'applying' });
+    complete();
+    await Promise.resolve();
+    expect(store.get()).toEqual({ kind: 'idle' });
+  });
+
+  it('keeps the reviewed draft available and shows a static message after failure', async () => {
+    const store = createPanelStore();
+    const submission = makeSubmission();
+    submission.sendReplacement = async () => { throw new Error('synthetic storage failure'); };
+    store.present(submission);
+    store.sendRedacted();
+    await Promise.resolve();
+    expect(store.get()).toMatchObject({ kind: 'active', phase: 'reviewing', error: expect.stringContaining('Nothing was sent') });
+    expect(submission.sentOriginal()).toBe(0);
+    expect(submission.sentReplacement()).toHaveLength(0);
+    store.dismiss();
+    expect(store.get()).toEqual({ kind: 'idle' });
+  });
+});
