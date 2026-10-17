@@ -46,3 +46,6 @@ blob-report/
 
 # Standalone TypeScript package builds
 packages/*/dist/
+
+# Local sanitized LangGraph simulation reports
+examples/langgraph/reports/

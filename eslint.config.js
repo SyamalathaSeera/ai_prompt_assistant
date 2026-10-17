@@ -161,14 +161,14 @@ export default tseslint.config(
   },
 
   {
-    files: ['scripts/**/*.mjs', 'packages/**/*.ts'],
+    files: ['scripts/**/*.mjs', 'packages/**/*.ts', 'examples/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
   {
     files: ['entrypoints/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'lib/vault/**/*.ts', 'lib/interception/**/*.ts', 'lib/storage/**/*.ts', 'lib/adapters/**/*.ts'],
     ignores: ['**/*.test.ts', '**/*.test.tsx'],
     rules: { 'no-restricted-imports': ['error', { patterns: [
-      { group: ['**/packages/**', '@ai-prompt-assistant/*', '*langchain*', '*langgraph*', '*langsmith*', 'node:*'], message: 'Extension boundary: no SDK, agent framework or Node runtime imports.' },
+      { group: ['**/packages/**', '**/examples/**', '@ai-prompt-assistant/*', '*langchain*', '*langgraph*', '*langsmith*', 'node:*'], message: 'Extension boundary: no SDK, agent framework or Node runtime imports.' },
     ] }] },
   },
   prettier,

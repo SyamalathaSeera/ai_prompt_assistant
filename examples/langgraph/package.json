@@ -1,0 +1,26 @@
+{
+  "name": "@ai-prompt-assistant/langgraph-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "demo": "tsx src/cli.ts demo",
+    "evaluate": "tsx src/cli.ts evaluate",
+    "test": "node ../../node_modules/vitest/vitest.mjs run --config vitest.config.ts",
+    "typecheck": "node ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ai-prompt-assistant/agent-security": "file:../../packages/agent-security",
+    "@ai-prompt-assistant/detector": "file:../../packages/detector",
+    "@langchain/core": "1.2.18",
+    "@langchain/langgraph": "1.5.0",
+    "langsmith": "0.11.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15"
+  }
+}

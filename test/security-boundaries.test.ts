@@ -55,6 +55,32 @@ function imports(path: string): { specifier: string; dynamic: boolean }[] {
 const framework = /(?:langchain|langgraph|langsmith)/i;
 
 describe('extension and SDK import boundaries', () => {
+  it('confines LangChain, LangGraph and LangSmith dependencies to the example package', () => {
+    for (const name of [
+      'package.json',
+      'packages/agent-security/package.json',
+      'packages/detector/package.json',
+    ]) {
+      const manifest = JSON.parse(readFileSync(resolve(root, name), 'utf8')) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      expect(
+        Object.keys({ ...manifest.dependencies, ...manifest.devDependencies }).filter(
+          (name) => framework.test(name),
+        ),
+      ).toEqual([]);
+    }
+    const demo = JSON.parse(
+      readFileSync(resolve(root, 'examples/langgraph/package.json'), 'utf8'),
+    ) as { dependencies: Record<string, string> };
+    expect(
+      ['@langchain/core', '@langchain/langgraph', 'langsmith'].every((name) =>
+        Object.hasOwn(demo.dependencies, name),
+      ),
+    ).toBe(true);
+  });
+
   it('keeps every extension runtime source independent of packages and Node', () => {
     const violations: string[] = [];
     const runtime = ['entrypoints', 'components', 'lib']
@@ -73,7 +99,8 @@ describe('extension and SDK import boundaries', () => {
           framework.test(spec) ||
           spec.startsWith('node:') ||
           spec.startsWith('@ai-prompt-assistant/') ||
-          (target && relative(root, target).replaceAll('\\', '/').startsWith('packages/'))
+          (target &&
+            /^(?:packages|examples)\//.test(relative(root, target).replaceAll('\\', '/')))
         ) {
           violations.push(`${relative(root, path)}: forbidden import`);
         }
@@ -93,6 +120,7 @@ describe('extension and SDK import boundaries', () => {
       for (const entry of imports(path)) {
         if (
           entry.dynamic ||
+          entry.specifier.includes('/examples/') ||
           (!entry.specifier.startsWith('.') && !allowed.has(entry.specifier))
         )
           violations.push(relative(root, path));
