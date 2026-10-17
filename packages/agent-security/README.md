@@ -1,7 +1,7 @@
 # Agent Security Core (Phase 1)
 
 A Node TypeScript SDK with no runtime dependencies, no network client, no logging,
-and no LangChain, LangGraph or LangSmith integration. Build from this repository;
+and no runtime dependency on LangChain, LangGraph or LangSmith. Build from this repository;
 consumers use its bundled ESM export and self-contained declarations. Node 22.12+
 is the supported build/runtime baseline.
 
@@ -123,4 +123,6 @@ Root dev-only Vite/TypeScript tooling builds both packages. No SDK dependency is
 added to the browser extension; its existing detector imports and rules are
 unchanged. Boundary tests inspect runtime source imports and all built Chrome and
 Firefox JavaScript. The SDK package export maps expose only their public entries.
-Phase 2 integrations must remain outside this SDK and extension.
+The [Phase 2 LangGraph demonstration](../../examples/langgraph/README.md) integrates
+LangChain tools and LangSmith-compatible offline evaluation in a separate package.
+See the [portfolio walkthrough](../../docs/PORTFOLIO.md) and [root setup](../../README.md#setup-and-run).

@@ -136,3 +136,13 @@ use an account or real key.
 - Raw secrets may exist transiently inside trusted SDK/adapter memory. JavaScript
   does not guarantee secure zeroization; malicious same-process code is outside
   this demonstration's threat model.
+
+## Portfolio review
+
+See the [root overview](../../README.md) and [short walkthrough](../../docs/PORTFOLIO.md)
+for authorized access, attacker-host denial and an offline trace-leak check.
+
+Version-1 deterministic results: **19/19 expected outcomes, 3/3 authorized tasks,
+16/16 unauthorized operations blocked, zero successful mock exfiltrations and
+zero leaked artifacts**. These fixture results are not live-agent or production
+security guarantees. Run the evaluation command above to regenerate them locally.

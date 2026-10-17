@@ -6,10 +6,53 @@
 
 ## System Overview
 
-A Manifest V3 browser extension with **no backend**. A content script is injected into
-supported LLM chat pages. It observes the composer, runs a purely local detector over
-the draft text, and interrupts submission when sensitive data is found. All state lives
-in `chrome.storage`. Nothing is transmitted anywhere.
+The repository contains a browser DLP extension and a separate Node TypeScript
+Agent Security SDK, sharing the pure detector in `lib/detector`. The standalone
+`packages/detector` facade reuses that source. The SDK and agent example do not
+enter the extension bundle; source and emitted-bundle boundary tests enforce this.
+See the [repository diagram](README.md#architecture) and [portfolio walkthrough](docs/PORTFOLIO.md).
+
+The extension scans supported chat composers locally, offers approved redaction,
+and uses browser storage for settings and session-only vault mappings. Its own
+runtime makes no external requests and has no backend or telemetry. WXT reads its
+bundled stylesheet through a local extension URL. This claim does not cover the
+host website: the website submits the text the user chooses to send. The detailed
+browser architecture and historical ADRs below apply to the extension.
+
+### Agent execution boundary
+
+`packages/agent-security` is framework-independent and has no network client or
+runtime package dependencies. Trusted application code creates run/tenant/principal
+scope, registers fixed-origin tools, and binds credentials to immutable grants for
+exact tool IDs, canonical HTTPS origins, and approved top-level fields. Credentials
+are retained in a bounded process-local vault with expiry and revocation; opaque
+references cross the model boundary. Every binding must authorize before any
+credential restoration and adapter invocation. No public unrestricted restore API
+is provided. Inputs, policies and adapter requests are copied/frozen.
+
+The adapter is trusted code: it must enforce its fixed destination and disable
+redirects before sending. Post-response checks cannot reverse an unsafe transport's
+side effects. SDK output allowlists and scrubbing keep known credential forms out
+of results; static errors and allowlisted audit events avoid raw request/exception
+data. Audit delivery is best effort. These mechanisms do not sandbox hostile
+same-process code or detect every possible encoding/side channel.
+
+`examples/langgraph` alone owns LangChain, LangGraph and LangSmith dependencies.
+An explicit graph tool node invokes only guarded LangChain wrappers that dispatch
+to the SDK. The scripted model, messages and `MemorySaver` checkpoints receive
+opaque references and sanitized results, while vault/run handles and restored
+adapter requests remain outside graph state and traced inputs/outputs. The mock
+GitHub transport records only sink IDs and credential-receipt booleans for offline
+evaluation. Anonymized outer trace records exercise the installed LangSmith Client
+serializer via an in-memory transport. Uploads are a separate, explicit opt-in.
+
+The [versioned simulation](examples/langgraph/README.md) verifies legitimate calls,
+policy/scope denials, redirects and tool-response injection; its measured outcomes
+are documented in the root README. It does not evaluate live models, HTTP/DNS/TLS,
+or a deployed service. Consult the [SDK contract](packages/agent-security/README.md)
+for memory limits, failure behavior and adapter responsibilities.
+
+### Browser extension boundary
 
 The single most important structural decision is the **site adapter layer**: every
 piece of host-page knowledge (selectors, DOM quirks, how to submit) is isolated behind
@@ -38,7 +81,7 @@ that should ever need to change in response.
                     │  └───────────────┬────────────────┘  │
                     │                  │ Finding[]          │
                     │  ┌───────────────▼────────────────┐  │
-                    │  │ ui/  (Shadow DOM, React)       │  │
+                    │  │ ui/  (Shadow DOM, Preact)      │  │
                     │  │   risk badge · approval modal  │  │
                     │  └───────────────┬────────────────┘  │
                     │                  │ approved text      │
@@ -53,7 +96,7 @@ that should ever need to change in response.
                     │   .session vault (cleared on restart)│
                     └──────────────────────────────────────┘
 
-              ✗ No server.  ✗ No fetch().  ✗ No telemetry.
+              No backend, external network requests, or telemetry.
 ```
 
 ---
@@ -61,19 +104,19 @@ that should ever need to change in response.
 ## Tech Stack
 
 ### Extension (ai_prompt_assistant)
-- **Framework**: WXT (Manifest V3, builds Chrome + Firefox from one source)
+- **Framework**: WXT (Chrome MV3 and Firefox MV2 build targets from one source)
 - **UI**: Preact 10 + TypeScript (strict mode) — see ADR-006
 - **Styling**: Tailwind CSS, injected UI mounted in a Shadow DOM
 - **Detection**: Pure TypeScript, zero dependencies, zero I/O
 - **Storage**: `chrome.storage.local` and `chrome.storage.session`
-- **Testing**: Vitest (unit + labeled corpus), Playwright for e2e (later milestone)
-- **Deployment**: Chrome Web Store
+- **Testing**: Vitest (unit + labeled corpus), Playwright offline browser journeys
+- **Distribution**: Local unpacked builds; store publication is outside these validation results
 
 ### Backend
-None. This is a deliberate product constraint, not a deferral. See ADR-001.
+The extension has no backend (ADR-001). The SDK delegates service execution to application-owned adapters; the example uses mocks.
 
 ### Database
-None. All state is per-device in `chrome.storage`.
+No database service. Extension state uses browser storage; the agent vault is process-local and the example checkpoints use `MemorySaver`.
 
 ---
 
@@ -102,7 +145,7 @@ lib/
 ├── policy/             # settings schema, defaults, allowlist
 └── storage/            # typed chrome.storage wrappers
 
-components/             # React UI, all Shadow-DOM mounted
+components/             # Preact UI; injected UI is Shadow-DOM mounted
 test/
 └── corpus/             # labeled positive + negative fixtures
 ```
@@ -141,7 +184,8 @@ False-positive fatigue is the primary uninstall driver for tools in this categor
 | `high` | Structured secrets with a recognizable shape: AWS keys, `sk-`/`ghp_`/`xox`-prefixed tokens, JWTs, PEM headers, connection strings, Luhn-valid card numbers | Flag loudly, block submit until resolved |
 | `low` | Soft PII: emails, phone numbers, addresses, IDs | Suggest quietly, never block |
 
-A rule is only allowed in `high` if a false positive is close to impossible.
+High-tier rules favor precision through structured signatures and validators. Corpus
+results describe the supplied fixtures, not an absence of false positives in practice.
 
 ### 3. Site adapters isolate all host-page knowledge
 
@@ -168,16 +212,18 @@ All extension UI in the page mounts into a shadow root with its own Tailwind bun
 Host styles cannot bleed in; our styles cannot bleed out. Non-negotiable — ChatGPT
 ships CSS changes constantly.
 
-### 5. Secrets are never logged or persisted in the clear
+### 5. Browser secrets use session storage and safe diagnostics
 
 Log the rule id and offsets. Never the value. The vault (real ↔ placeholder map) lives
 in `chrome.storage.session`, which clears on browser restart and is never synced.
 
-### 6. Fail open, never closed
+### 6. Browser failures preserve host-page usability
 
 Any uncaught error in the extension must leave the host page fully usable. Every
 interception path is wrapped so that a detector or adapter crash falls through to normal
-submission rather than trapping the user's prompt.
+submission rather than trapping the user's prompt. This is a usability choice, not
+an enforcement guarantee: the user may send original text. Agent SDK execution
+uses a separate deny-by-default policy boundary.
 
 ---
 
@@ -195,13 +241,18 @@ Every host on the install screen costs conversion. Ask for one.
 
 ## Architectural Decisions (ADR Log)
 
+The entries below record historical extension decisions and measurements; they are
+not current portfolio benchmarks or security guarantees. The agent SDK boundary
+is described above.
+
 ### ADR-001: No backend in v1
 **Date**: 2026-08-12 · **Status**: Accepted
 
-The product's core claim is that prompt content never leaves the device. A backend
+The extension processes drafts locally and adds no external requests of its own.
+The host website submits the text the user approves. An extension backend
 would contradict the claim, add unit costs per user, require a data-handling
 disclosure on the store listing, and lengthen review. Local-only detection also means
-zero marginal cost from 100 to 100,000 users.
+no per-prompt remote-inference service cost for this processing path.
 
 **Consequence**: prompt refinement (which needs a model) cannot ship in v1 without
 either BYOK or an on-device model. Deferred deliberately.
