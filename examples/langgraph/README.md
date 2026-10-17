@@ -19,7 +19,8 @@ flowchart LR
   R --> A[Scripted agent node]
   A --> C[Model-selected LangChain tool call]
   C --> E[Trusted tool-execution node]
-  E --> S[SDK schema, binding, scope and origin checks]
+  E --> Gate["Strict raw-argument gate"]
+  Gate --> S[SDK schema, binding, scope and origin checks]
   V --> S
   S --> M[Fixed-destination mock transport; redirect error]
   M --> O[SDK sanitized result]
@@ -146,3 +147,24 @@ Version-1 deterministic results: **19/19 expected outcomes, 3/3 authorized tasks
 16/16 unauthorized operations blocked, zero successful mock exfiltrations and
 zero leaked artifacts**. These fixture results are not live-agent or production
 security guarantees. Run the evaluation command above to regenerate them locally.
+
+## Expanded adversarial benchmark
+
+The [version-2 benchmark protocol and findings](BENCHMARK.md) extends this harness
+with a deduplicated boundary matrix, 100 legitimate configurations and separately
+counted property tests. From the repository root, run:
+
+```powershell
+npm --prefix examples/langgraph run benchmark -- --seed 20261017 --repeat 2
+```
+
+The trusted graph node validates the original tool argument object's own properties
+before the LangChain/Zod wrapper sees a frozen scalar snapshot. Unknown properties
+and prototype-related keys reject the whole call before SDK binding resolution or
+adapter invocation. The 19-case baseline and 290-case corpus are unchanged; both
+prototype-key strict-rejection regressions now pass.
+
+Trace records contain registered tool IDs and sanitized results rather than raw
+tool arguments. Private offline evaluation collectors still inspect actual model
+messages, arguments and checkpoint bytes; these artifacts are not uploaded or
+written into metrics reports. All results remain deterministic simulation evidence.

@@ -10,7 +10,8 @@
     "demo": "tsx src/cli.ts demo",
     "evaluate": "tsx src/cli.ts evaluate",
     "test": "node ../../node_modules/vitest/vitest.mjs run --config vitest.config.ts",
-    "typecheck": "node ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"
+    "typecheck": "node ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
+    "benchmark": "tsx src/cli.ts benchmark"
   },
   "dependencies": {
     "@ai-prompt-assistant/agent-security": "file:../../packages/agent-security",
@@ -21,6 +22,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "fast-check": "4.10.2",
     "tsx": "4.23.15"
   }
 }

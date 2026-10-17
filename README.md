@@ -31,7 +31,8 @@ flowchart TB
     Bind --> Vault["Scoped process-local vault"]
     Bind --> Model["Opaque references in scripted agent messages"]
     Model --> Call["LangChain tool arguments / LangGraph checkpoints"]
-    Call --> Auth["SDK: schema, scope, expiry, policy, exact origin, field checks"]
+    Call --> Gate["Strict raw-argument schema validation"]
+    Gate --> Auth["SDK: schema, scope, expiry, policy, exact origin, field checks"]
     Trusted["Application-owned tool registry and grants"] --> Auth
     Vault --> Auth
     Auth -->|"all checks pass"| Execute["Restore inside trusted adapter; redirects disabled"]
@@ -195,3 +196,14 @@ Start with the [portfolio walkthrough](docs/PORTFOLIO.md), then review the
 [architecture](ARCHITECTURE.md), [SDK security contract](packages/agent-security/README.md),
 and [LangGraph demo](examples/langgraph/README.md). The walkthrough demonstrates an
 authorized call, attacker-host denial, and an offline trace-leak check.
+
+## Adversarial benchmark
+
+The [expanded benchmark](examples/langgraph/BENCHMARK.md) preserves the 19-case
+baseline above and adds 290 boundary-matrix/probe cases plus separately counted
+fast-check properties. Strict raw-argument validation in the trusted graph node
+rejects prohibited fields before LangChain/Zod can normalize them. The two original
+prototype-key regressions now pass without changing their corpus expectations.
+See the protocol for reproducible commands, per-category coverage and the
+distinction between graph execution and artifact probes. Results remain scripted
+mock measurements, not real-world attack-resistance guarantees.

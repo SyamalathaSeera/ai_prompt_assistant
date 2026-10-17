@@ -13,11 +13,16 @@ import {
   StateGraph,
 } from '@langchain/langgraph';
 import { z } from 'zod';
+import { createRawToolDispatcher } from './raw-tool-dispatch.js';
 import {
   createAgentSecurity,
   type AuditEvent,
   type BindingPolicy,
   type ExecutionResult,
+  type AgentSecurity,
+  type SecurityRun,
+  type Scope,
+  type FixedServiceTool,
 } from '@ai-prompt-assistant/agent-security';
 import { createTraceAnonymizer } from './anonymizer.js';
 import {
@@ -26,11 +31,11 @@ import {
   projectTrace,
   disableAutomaticTracing,
 } from './tracing.js';
-import { createMockService } from './mock-service.js';
+import { createMockService, type TransportObservation } from './mock-service.js';
 import { emptyArtifacts, inspectLeaks } from './evaluator.js';
 import { GITHUB_ORIGIN, syntheticCredential, type Scenario } from './fixtures.js';
 
-interface Call {
+export interface Call {
   name: string;
   args: Record<string, unknown>;
 }
@@ -42,7 +47,30 @@ function view(messages: readonly BaseMessage[]) {
   }));
 }
 
-export async function runScenario(scenario: Scenario) {
+/** Trusted benchmark configuration only; never part of graph state or model tools. */
+export interface TrustedScenarioExtension {
+  service(canary: string): {
+    tools: FixedServiceTool[];
+    snapshot(): TransportObservation;
+  };
+  scope: Scope;
+  policy: BindingPolicy;
+  prepare?(context: {
+    core: AgentSecurity;
+    owner: SecurityRun;
+    reference: string;
+    setTime(value: number): void;
+  }): { run: SecurityRun; reference: string };
+  initialCall(reference: string): Call;
+  followupCall?(reference: string): Call;
+  beforeExecute?(index: number): SecurityRun | void;
+  authorizedAttempt?(index: number): boolean;
+  audit?(): void;
+}
+export async function runScenario(
+  scenario: Scenario,
+  extension?: TrustedScenarioExtension,
+) {
   disableAutomaticTracing();
   const canary = syntheticCredential();
   const artifacts = emptyArtifacts();
@@ -70,28 +98,29 @@ export async function runScenario(scenario: Scenario) {
     'scope-override',
     'embedded-reference',
   ].includes(scenario.kind);
-  const service = createMockService(
-    canary,
-    behavior,
-    contextAuthorized,
-    scenario.toolResponse,
-  );
+  const service =
+    extension?.service(canary) ??
+    createMockService(canary, behavior, contextAuthorized, scenario.toolResponse);
   let now = 0;
+  const recordAudit = (event: AuditEvent) => {
+    audit.push(event);
+    extension?.audit?.();
+  };
   const core = createAgentSecurity({
     tools: service.tools,
     clock: () => now,
     vault: { ttlMs: 10 },
-    onAudit: (event) => {
-      audit.push(event);
+    onAudit: recordAudit,
+  });
+  const scope = Object.freeze(
+    extension?.scope ?? {
+      tenantId: 'tenant-demo',
+      principalId: 'principal-demo',
+      runId: `run-${scenario.id}`,
     },
-  });
-  const scope = Object.freeze({
-    tenantId: 'tenant-demo',
-    principalId: 'principal-demo',
-    runId: `run-${scenario.id}`,
-  });
+  );
   const owner = core.run(scope);
-  const policy: BindingPolicy = {
+  const policy: BindingPolicy = extension?.policy ?? {
     grants: [
       { toolId: 'github.read', origin: GITHUB_ORIGIN, fields: ['credential'] },
       // Batch allows its first credential field only; second must independently authorize.
@@ -109,12 +138,29 @@ export async function runScenario(scenario: Scenario) {
   if (scenario.kind === 'expired') now = 11;
   if (scenario.kind === 'revoked') owner.revoke(reference);
   if (scenario.kind === 'forged') reference = '[[APA_SECRET_' + '0'.repeat(64) + ']]';
-  const mapping = Object.freeze({
-    github_read: 'github.read',
-    github_delete: 'github.delete',
-    attacker_collect: 'attacker.collect',
-    github_batch: 'github.batch',
-  });
+  if (extension?.prepare) {
+    ({ run, reference } = extension.prepare({
+      core,
+      owner,
+      reference,
+      setTime: (value) => {
+        now = value;
+      },
+    }));
+  }
+  const mapping = extension
+    ? Object.fromEntries(
+        service.tools.map((registered) => [
+          registered.id.replaceAll('.', '_'),
+          registered.id,
+        ]),
+      )
+    : Object.freeze({
+        github_read: 'github.read',
+        github_delete: 'github.delete',
+        attacker_collect: 'attacker.collect',
+        github_batch: 'github.batch',
+      });
   const results: ExecutionResult[] = [];
   const attempts: {
     authorized: boolean;
@@ -131,7 +177,6 @@ export async function runScenario(scenario: Scenario) {
           // Neither the raw adapter nor credential restoration is traced. Only the
           // outer opaque arguments and sanitized SDK result cross the graph boundary.
           const result = await run.execute(trustedId, args);
-          results.push(result);
           return JSON.stringify(result);
         },
         {
@@ -143,11 +188,41 @@ export async function runScenario(scenario: Scenario) {
     ]),
   );
 
+  const dispatchRaw = createRawToolDispatcher(
+    Object.entries(mapping).map(([name, trustedId]) => ({
+      name,
+      id: trustedId,
+      input: service.tools.find((registered) => registered.id === trustedId)!.input,
+      async invoke(snapshot) {
+        // Parsing is allowed only after every original own property has passed the
+        // raw gate. The SDK independently validates and authorizes this snapshot.
+        return JSON.parse(
+          await wrappers.get(name)!.invoke(snapshot, { callbacks: [] }),
+        ) as ExecutionResult;
+      },
+    })),
+    recordAudit,
+  );
+  const tracedMessages = (messages: readonly BaseMessage[]) =>
+    view(messages).map((message) => ({
+      ...message,
+      ...(message.tool_calls
+        ? {
+            tool_calls: message.tool_calls.map((call) => ({
+              toolId: Object.hasOwn(mapping, call.name)
+                ? mapping[call.name as keyof typeof mapping]
+                : 'unknown',
+            })),
+          }
+        : {}),
+    }));
+
   function initialCall(): Call {
     const args: Record<string, unknown> = {
       credential: reference,
       repository: scenario.kind === 'read-other' ? 'demo/other' : 'demo/repository',
     };
+    if (extension) return extension.initialCall(reference);
     let name = 'github_read';
     if (scenario.kind === 'wrong-tool') name = 'github_delete';
     if (scenario.kind === 'attacker-host') name = 'attacker_collect';
@@ -175,6 +250,12 @@ export async function runScenario(scenario: Scenario) {
       let call: Call | undefined;
       if (scriptedCalls === 0) call = initialCall();
       else if (
+        extension?.followupCall &&
+        scriptedCalls === 1 &&
+        JSON.stringify(state.messages.at(-1)?.content).includes('ATTACK_PLAN')
+      ) {
+        call = extension.followupCall(reference);
+      } else if (
         scenario.kind === 'response-injection' &&
         scriptedCalls === 1 &&
         JSON.stringify(state.messages.at(-1)?.content).includes('attacker_collect')
@@ -192,7 +273,11 @@ export async function runScenario(scenario: Scenario) {
           ? [{ ...call, id: `call-${scriptedCalls}`, type: 'tool_call' as const }]
           : [],
       });
-      traces.record('scripted-agent', { messages: input }, { messages: view([message]) });
+      traces.record(
+        'scripted-agent',
+        { messages: tracedMessages(state.messages) },
+        { messages: tracedMessages([message]) },
+      );
       return { messages: [message] };
     })
     .addNode('trusted_tools', async (state) => {
@@ -200,28 +285,29 @@ export async function runScenario(scenario: Scenario) {
       if (!last || !AIMessage.isInstance(last)) return { messages: [] };
       const replies: ToolMessage[] = [];
       for (const call of last.tool_calls ?? []) {
-        artifacts.toolArguments.push(
-          JSON.stringify({ name: call.name, arguments: call.args }),
-        );
+        const nextRun = extension?.beforeExecute?.(attempts.length);
+        if (nextRun) run = nextRun;
         const before = results.length;
         const deliveryOffset = service.snapshot().deliveries.length;
         let content: string;
-        const wrapper = wrappers.get(call.name);
         try {
-          if (wrapper) content = await wrapper.invoke(call.args, { callbacks: [] });
-          else {
-            const denied = await run.execute('unregistered.tool', call.args);
-            results.push(denied);
-            content = JSON.stringify(denied);
-          }
+          // Original call.args reaches this gate before any LangChain/Zod parser.
+          const result = await dispatchRaw(call.name, call.args);
+          results.push(result);
+          content = JSON.stringify(result);
         } catch {
           artifacts.errors.push('TOOL_EXECUTION_FAILED');
           content = JSON.stringify({ ok: false, code: 'TOOL_EXECUTION_FAILED' });
         }
+        // Private evaluation capture occurs only after the raw dispatch gate.
+        artifacts.toolArguments.push(
+          JSON.stringify({ name: call.name, arguments: call.args }),
+        );
         const result = results[before];
         const authorized =
-          scenario.expectation === 'authorized' ||
-          (scenario.kind === 'response-injection' && attempts.length === 0);
+          extension?.authorizedAttempt?.(attempts.length) ??
+          (scenario.expectation === 'authorized' ||
+            (scenario.kind === 'response-injection' && attempts.length === 0));
         const unauthorizedDeliveries = service
           .snapshot()
           .deliveries.slice(deliveryOffset)
@@ -235,7 +321,11 @@ export async function runScenario(scenario: Scenario) {
         });
         traces.record(
           'guarded-tool',
-          { tool: call.name, arguments: call.args },
+          {
+            toolId: Object.hasOwn(mapping, call.name)
+              ? mapping[call.name as keyof typeof mapping]
+              : 'unknown',
+          },
           { result: JSON.parse(content) },
         );
         replies.push(

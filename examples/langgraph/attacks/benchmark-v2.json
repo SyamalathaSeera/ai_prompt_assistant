@@ -1,0 +1,16 @@
+﻿{
+  "version": "2",
+  "defaultSeed": 20261017,
+  "targets": {
+    "unauthorized-tools-fields": 70,
+    "destination-manipulation": 80,
+    "scope-isolation": 70,
+    "reference-lifecycle": 70,
+    "tool-output-injection": 100,
+    "encoded-structured": 60,
+    "trace-audit-error": 50
+  },
+  "legitimateTarget": 100,
+  "deduplication": "SHA-256 of canonical execution inputs, excluding IDs, category and family labels",
+  "counting": "Graph execution, configuration validation, artifact probes and property runs are separate; matrix variants are not independent attack families."
+}

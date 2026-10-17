@@ -9,6 +9,11 @@ import { disableAutomaticTracing, uploadTraces } from './tracing.js';
 disableAutomaticTracing();
 async function main(): Promise<void> {
   const command = process.argv[2];
+  if (command === 'benchmark') {
+    const { benchmarkCli } = await import('./benchmark/cli.js');
+    await benchmarkCli(process.argv.slice(3));
+    return;
+  }
   if (!['demo', 'evaluate'].includes(command ?? ''))
     throw new Error('USAGE_DEMO_OR_EVALUATE');
   const demoIds = new Set([
